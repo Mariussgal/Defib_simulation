@@ -6,7 +6,7 @@ export type DisplayMode = "DAE" | "ARRET" | "Moniteur" | "Stimulateur" | "Manuel
 export interface DefibrillatorState {
   // Display
   displayMode: DisplayMode;
-  manualFrequency: number;
+  manualFrequency: string;
   
   // Charging and shock
   isCharging: boolean;
@@ -25,7 +25,7 @@ export interface DefibrillatorState {
 export const useDefibrillator = () => {
   const [state, setState] = useState<DefibrillatorState>({
     displayMode: "ARRET",
-    manualFrequency: 60,
+    manualFrequency: "1-10",
     isCharging: false,
     chargeProgress: 0,
     shockCount: 0,
@@ -44,7 +44,7 @@ export const useDefibrillator = () => {
     updateState({ displayMode: mode });
   };
 
-  const setManualFrequency = (frequency: number, onModeChangeCallback?: (mode: DisplayMode) => void) => {
+  const setManualFrequency = (frequency: string, onModeChangeCallback?: (mode: DisplayMode) => void) => {
     updateState({ manualFrequency: frequency });
     // Notify parent component to handle mode switching
     if (state.displayMode !== "Manuel" && onModeChangeCallback) {
@@ -101,10 +101,10 @@ export const useDefibrillator = () => {
 
     // Show notification
     NotificationService.showShockDelivered({
-      energy: state.manualFrequency,
+      energy: 150, // Default energy value for notification
       shockNumber: newShockCount,
       patientName: "Dupont, Samuel",
-      frequency: state.manualFrequency,
+      frequency: 120, // Default frequency value for notification
     });
   };
 

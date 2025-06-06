@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useCallback } from "react";
 import {
   FlagTriangleRight,
   Triangle,
@@ -44,12 +44,8 @@ const DefibInterface: React.FC = () => {
   };
 
   const handleRotaryValueChange = (value: number) => {
-    console.log("Rotary value:", value);
-    
-    const newFrequency = RotaryMappingService.mapRotaryToFrequency(value);
-    defibrillator.setManualFrequency(newFrequency, handleModeChange);
-    
-    console.log(`Rotary: ${value}° -> Frequency: ${newFrequency} BPM`);
+    const newValue = RotaryMappingService.mapRotaryToValue(value);
+    defibrillator.setManualFrequency(newValue, handleModeChange);
   };
 
   const handleChargeButtonClick = () => {
@@ -74,13 +70,13 @@ const DefibInterface: React.FC = () => {
   };
 
   // Callbacks pour le DAE
-  const handleDaePhaseChange = (phase: 'placement' | 'preparation' | 'analyse' | 'charge' | 'attente_choc') => {
+  const handleDaePhaseChange = useCallback((phase: 'placement' | 'preparation' | 'analyse' | 'charge' | 'attente_choc') => {
     setDaePhase(phase);
-  };
+  }, []);
 
-  const handleDaeShockReady = (shockFunction: (() => void) | null) => {
+  const handleDaeShockReady = useCallback((shockFunction: (() => void) | null) => {
     setDaeShockFunction(() => shockFunction);
-  };
+  }, []);
 
   // gère changement de mode avec écran de démarrage
   const handleModeChange = (newMode: DisplayMode) => {
@@ -236,19 +232,22 @@ const DefibInterface: React.FC = () => {
           <div className="w-100 bg-gray-700 rounded-xl p-4">
             {/* Bouton rotatif */}
             <div className="relative flex flex-col items-center">
-              <ButtonComponent
-                onButton1Click={() => handleModeChange("DAE")}
-                onButton2Click={() => handleModeChange("ARRET")}
-                onButton3Click={() => handleModeChange("Moniteur")}
-                onButton4Click={() => handleModeChange("Stimulateur")}
-                selectedMode={
-                  defibrillator.displayMode as "DAE" | "ARRET" | "Moniteur" | "Stimulateur"
-                }
-              />
-              <RotativeKnob
-                initialValue={-90}
-                onValueChange={handleRotaryValueChange}
-              />
+              <div className="mt-8">
+                <ButtonComponent
+                  onButton1Click={() => handleModeChange("DAE")}
+                  onButton2Click={() => handleModeChange("ARRET")}
+                  onButton3Click={() => handleModeChange("Moniteur")}
+                  selectedMode={
+                    defibrillator.displayMode as "DAE" | "ARRET" | "Moniteur"
+                  }
+                />
+              </div>
+              <div className="-mt-0">
+                <RotativeKnob
+                  initialValue={0}
+                  onValueChange={handleRotaryValueChange}
+                />
+              </div>
             </div>
 
             {/* Boutons colorés */}

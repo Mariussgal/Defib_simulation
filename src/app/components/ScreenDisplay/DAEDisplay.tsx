@@ -3,7 +3,7 @@ import ECGDisplay from '../graphsdata/ECGDisplay';
 import TimerDisplay from '../TimerDisplay';
 
 interface DAEDisplayProps {
-  frequency: number; 
+  frequency: string; 
   chargeProgress: number; 
   shockCount: number;
   isCharging: boolean; // État de charge en cours

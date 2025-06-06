@@ -3,7 +3,7 @@ import ECGDisplay from "../graphsdata/ECGDisplay";
 import TimerDisplay from "../TimerDisplay";
 
 interface ManuelDisplayProps {
-  frequency: number; // Fréquence cardiaque manuelle (1-200)
+  frequency: string; // Fréquence cardiaque manuelle (1-200)
   chargeProgress: number; // 0-100 pour la barre de progression
   shockCount: number; // Nombre de chocs délivrés
   isCharging: boolean; // État de charge en cours
