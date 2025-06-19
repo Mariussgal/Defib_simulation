@@ -172,6 +172,8 @@ const MonitorDisplay: React.FC<MonitorDisplayProps> = ({
             rhythmType={rhythmType} 
             showSynchroArrows={showSynchroArrows}
             heartRate={heartRate}
+            timeWindowSeconds={7}
+            timeResolution={0.001}
           />
         </div>
 

@@ -381,7 +381,7 @@ const DefibInterface: React.FC = () => {
   };
 
   const renderScreenContent = () => {
-    if (isBooting) {
+     if (isBooting) {
       return (
         <div className="h-full flex flex-col items-center justify-center bg-black text-white">
           <div className="flex flex-col items-center space-y-8">
@@ -444,7 +444,7 @@ const DefibInterface: React.FC = () => {
               showSynchroArrows={defibrillator.isSynchroMode}
               heartRate={scenario.heartRate}
             />
-            <div className="absolute top-[52.5%] right-4 text-xs font-bold text-green-400 mt-3">
+            <div className="absolute top-[52.5%] right-4 text-xs font-bold text-green-400 mt-4.5">
               <span>
                 {effectiveRhythm === "fibrillationVentriculaire" &&
                 scenario.currentScenario === "scenario_4"

@@ -37,27 +37,23 @@ export const useScenario = () => {
   // Étapes du scénario 1
   const scenario1Steps: ScenarioStep[] = [
     {
-      title: "Allumer le défibrillateur en position moniteur",
+      title: "",
       description: "Tournez la mollette verte pour passer du mode ARRÊT au mode Moniteur",
     },
     {
-      title: "Lire le rythme",
-      description: "Observez le tracé ECG sur l'écran pendant quelques secondes",
-    },
-    {
-      title: "Analyser le rythme",
+      title: "Observer + Analyser le rythme",
       description: "Arrêter le massage pour analyser le rythme: Fibrillation ventriculaire détectée",
     },
     {
-      title: "Positionner la mollette sur 150 joules",
+      title: "",
       description: "Tournez la mollette verte pour sélectionner une énergie de 150J",
     },
     {
-      title: "Appuyer sur le bouton charge (jaune)",
+      title: "",
       description: "Pressez le bouton jaune marqué 'Charge' pour charger le défibrillateur",
     },
     {
-      title: "Délivrer le choc (bouton orange)",
+      title: "",
       description: "Pressez le bouton orange marqué 'Choc' pour délivrer l'énergie",
     },
   ];
@@ -65,23 +61,23 @@ export const useScenario = () => {
   // Étapes du scénario 2
   const scenario2Steps: ScenarioStep[] = [
     {
-      title: "Allumer le défibrillateur en mode DAE",
+      title: "",
       description: "Tournez la mollette verte pour passer du mode ARRÊT au mode DAE",
     },
     {
-      title: "Connecter les électrodes et vérifier le positionnement",
+      title: "",
       description: "Placez les électrodes selon l'image affichée et validez",
     },
     {
-      title: "Laisser le DAE analyser le rythme",
+      title: "",
       description: "Attendez que l'analyse du rythme soit terminée",
     },
     {
-      title: "Choc recommandé - Charge automatique",
+      title: "",
       description: "Le DAE charge automatiquement à 150 joules",
     },
     {
-      title: "Délivrer le choc (bouton orange)",
+      title: "",
       description: "Pressez le bouton orange clignotant pour délivrer le choc",
     },
   ];
@@ -89,27 +85,27 @@ export const useScenario = () => {
   // Étapes du scénario 3 (Électro-entraînement)
   const scenario3Steps: ScenarioStep[] = [
     {
-      title: "Connecter les électrodes et vérifier le positionnement",
+      title: "",
       description: "Placez les électrodes et validez le positionnement sur le patient",
     },
     {
-      title: "Allumer le défibrillateur en position moniteur",
+      title: "",
       description: "Tournez la mollette verte pour passer du mode ARRÊT au mode Moniteur",
     },
     {
-      title: "Lire le rythme",
+      title: "",
       description: "Observez le tracé ECG : BAV 3 à 30/min détecté",
     },
     {
-      title: "Passer en mode Stimulateur",
+      title: "",
       description: "Tournez la mollette verte pour passer au mode Stimulateur",
     },
     {
-      title: "Régler les paramètres de l'électro-entraînement",
+      title: "",
       description: "Accédez aux 'Réglages stimulateur' et ajustez l'intensité et la fréquence",
     },
     {
-      title: "Lancer la stimulation",
+      title: "",
       description: "Activez la stimulation via le bouton 'Début stimulateur'",
     },
   ];
@@ -117,27 +113,27 @@ export const useScenario = () => {
   // Étapes du scénario 4
   const scenario4Steps: ScenarioStep[] = [
     {
-      title: "Connecter les électrodes et vérifier le positionnement",
+      title: "",
       description: "Placez les électrodes et validez le positionnement sur le patient",
     },
     {
-      title: "Allumer le défibrillateur en position moniteur",
+      title: "",
       description: "Tournez la mollette verte pour passer du mode ARRÊT au mode Moniteur",
     },
     {
-      title: "Lire le rythme",
+      title: "",
       description: "Observez le tracé ECG : ACFA à 160/min détectée",
     },
     {
-      title: "Appuyer sur le bouton synchro",
+      title: "",
       description: "Activez le mode synchronisé en appuyant sur le bouton Synchro (flèches apparaissent)",
     },
     {
-      title: "Tourner la mollette sur le nombre de Joules",
+      title: "",
       description: "Sélectionnez une énergie appropriée (ex: 100-150 joules)",
     },
     {
-      title: "Charger puis choquer",
+      title: "",
       description: "Pressez le bouton Charge puis le bouton Choc pour la cardioversion",
     },
   ];
