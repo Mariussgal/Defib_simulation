@@ -71,8 +71,8 @@ const ECGRhythmDropdown: React.FC<ECGRhythmDropdownProps> = ({
       description: "Plat",
     },
     {
-      type: "tachycardie" as RhythmType,
-      label: "Tachycardie",
+      type: "tachycardieVentriculaire" as RhythmType,
+      label: "Tachycardie ventriculaire",
       icon: <ChevronsUp className="w-4 h-4" />,
       color: "bg-purple-500 hover:bg-purple-600",
       description: "Accéléré",

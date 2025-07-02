@@ -40,8 +40,8 @@ const RhythmController: React.FC<RhythmControllerProps> = ({
       description: 'Plat'
     },
     {
-      type: 'tachycardie' as RhythmType,
-      label: 'Tachycardie',
+      type: 'tachycardieVentriculaire' as RhythmType,
+      label: 'Tachycardie Ventriculaire',
       icon: <Activity className="w-4 h-4" />,
       color: 'bg-red-500 hover:bg-red-600',
       description: 'Accéléré'

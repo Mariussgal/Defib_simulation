@@ -27,6 +27,17 @@ const PlethDisplay: React.FC<PlethDisplayProps> = ({
     plethStream: [] as number[]
   });
 
+  const createPlethBuffer = () => {
+    const spacing = Math.round(animationState.current.SCROLL_SPEED * (60 / 70)); 
+    const buffer = new Array(spacing * 3).fill(0); 
+    
+    for (let i = 0; i < buffer.length; i++) {
+      buffer[i] = - plethWaveform[i % plethWaveform.length];
+    }
+    
+    return buffer;
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
