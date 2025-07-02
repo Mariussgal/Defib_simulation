@@ -49,28 +49,29 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
     const excludedRhythms: RhythmType[] = ['fibrillationVentriculaire', 'asystole'];
 
     if (!excludedRhythms.includes(rhythmType)) {
-        const min = Math.min(...newBuffer);
-        const max = Math.max(...newBuffer);
-        const threshold = min + (max - min) * 0.7;
-        const searchWindowRadius = 5; // 40ms window
+      const min = Math.min(...newBuffer);
+      const max = Math.max(...newBuffer);
+      const threshold = min + (max - min) * 0.7;
+      const searchWindowRadius = 5;
+      const refractoryPeriodSamples = 38; // 152ms @ 250Hz
 
-        for (let i = 0; i < newBuffer.length; i++) {
-            const value = newBuffer[i];
-            if (value < threshold) continue;
-            
-            let isWindowMax = true;
-            for (let j = 1; j <= searchWindowRadius; j++) {
-                const leftNeighbor = newBuffer[(i - j + newBuffer.length) % newBuffer.length];
-                const rightNeighbor = newBuffer[(i + j) % newBuffer.length];
-                if (value < leftNeighbor || value < rightNeighbor) {
-                    isWindowMax = false;
-                    break;
-                }
-            }
-            if (isWindowMax) {
-                newPeakCandidates.add(i);
-            }
-        }
+      for (let i = 0; i < newBuffer.length; i++) {
+          const value = newBuffer[i];
+          if (value < threshold) continue;
+          
+          let isWindowMax = true;
+          for (let j = 1; j <= searchWindowRadius; j++) {
+              if (value < newBuffer[(i - j + newBuffer.length) % newBuffer.length] || value < newBuffer[(i + j) % newBuffer.length]) {
+                  isWindowMax = false;
+                  break;
+              }
+          }
+          if (isWindowMax) {
+            newPeakCandidates.add(i);
+            i += refractoryPeriodSamples; 
+          }
+      }
+  
     }
     
     peakCandidateIndicesRef.current = newPeakCandidates;
@@ -125,7 +126,7 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
     };
     
     const drawArrow = (x: number) => {
-        ctx.fillStyle = '#FF0000';
+        ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
         ctx.moveTo(x, 15);
         ctx.lineTo(x - 5, 5);
@@ -156,7 +157,7 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
       const samplingRate = 250;
       const pixelsPerSecond = width / durationSeconds;
       const pixelsToAdvance = (deltaTime / 1000) * pixelsPerSecond;
-      const refractoryPeriodMs = 152;
+      
 
       const oldAccumulator = scanAccumulatorRef.current;
       scanAccumulatorRef.current += pixelsToAdvance;
@@ -202,10 +203,9 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
           lastYRef.current = currentY;
           
           if (showSynchroArrows && peakCandidateIndicesRef.current.has(sampleIndex)) {
-              if (currentTime - lastArrowDrawTimeRef.current > refractoryPeriodMs) {
+             
                 drawArrow(x);
-                lastArrowDrawTimeRef.current = currentTime;
-              }
+                
           }
       }
 
@@ -225,7 +225,7 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
           width={width}
           height={height}
           className="w-full"
-          style={{ imageRendering: "pixelated", height: height }}
+          style={{ imageRendering: "auto", height: height }}
         />
       </div>
     </div>
