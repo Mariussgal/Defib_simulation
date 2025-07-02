@@ -83,7 +83,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
       label: 'Scénarios',
       icon: <FileText className="w-4 h-4" />,
     },
-    { id: 'separator_1', label: 'separator' },
+    { id: 'separator_3', label: 'separator' },
     {
       id: 'settings',
       label: 'Paramètres',
