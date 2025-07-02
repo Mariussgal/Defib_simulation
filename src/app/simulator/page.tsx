@@ -639,7 +639,7 @@ const DefibInterface: React.FC = () => {
                     ? "Fibrillation ventriculaire"
                     : effectiveRhythm === "asystole"
                       ? "Asystolie"
-                      : effectiveRhythm === "tachycardie"
+                      : effectiveRhythm === "tachycardieVentriculaire"
                         ? "Tachycardie"
                         : effectiveRhythm === "fibrillationAtriale"
                           ? "Fibrillation atriale"
