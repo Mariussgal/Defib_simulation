@@ -88,7 +88,9 @@ const PlethDisplay: React.FC<PlethDisplayProps> = ({
     const buffer = new Array(spacing * 3).fill(0); 
     
     for (let i = 0; i < buffer.length; i++) {
+
       buffer[i] = - plethWaveform[i % plethWaveform.length];
+
     }
     
     return buffer;

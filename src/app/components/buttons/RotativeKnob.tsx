@@ -150,10 +150,15 @@ const RotativeKnob: React.FC<RotativeKnobProps> = ({
     setAccumulatedRotation(0);
   };
 
-  // Déclencher onValueChange lors de l'initialisation
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
-    onValueChange?.(rotaryValue);
-  }, []); // Seulement au montage
+    if (isInitialized) {
+      onValueChange?.(rotaryValue);
+    } else {
+      setIsInitialized(true);
+    }
+  }, [rotaryValue]);
 
   useEffect(() => {
     if (isDragging) {
@@ -182,7 +187,7 @@ const RotativeKnob: React.FC<RotativeKnobProps> = ({
   const rotationAngle = rotaryValue;
 
   return (
-    <div className="relative mt-6">
+    <div className="relative mt-6 -ml-5">
       <div className="absolute inset-0 w-56 h-56">
         {predefinedAngles
           .map((item) => (

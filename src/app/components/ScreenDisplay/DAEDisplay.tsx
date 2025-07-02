@@ -21,7 +21,8 @@ interface DAEDisplayProps {
       | "pre-charge"
       | "charge"
       | "attente_choc"
-      | "choc",
+      | "choc"
+      | "pas_de_choc",
   ) => void; // Callback pour exposer la phase actuelle
   onElectrodePlacementValidated?: () => void; // Callback pour la validation du placement des électrodes
 }
@@ -33,7 +34,8 @@ type Phase =
   | "pre-charge"
   | "charge"
   | "attente_choc"
-  | "choc";
+  | "choc"
+  | "pas_de_choc";
 
 const DAEDisplay: React.FC<DAEDisplayProps> = ({
   shockCount,
@@ -84,7 +86,13 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
         setProgressBarPercent(percent);
 
         if (percent >= 100) {
-          setPhase("pre-charge");
+          // Si asystolie, passer à "pas_de_choc"
+          if (rhythmType === "asystole") {
+            setPhase("pas_de_choc");
+          } else {
+            // Sinon, passer à pre-charge (rythmes choquables)
+            setPhase("pre-charge");
+          }
           setProgressBarPercent(0);
         }
       }, 100);
@@ -118,6 +126,18 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
           setChargePercent(100);
         }
       }, 50);
+    } else if (phase === "pas_de_choc") {
+    // attendre 8 secondes puis relancer l'analyse
+      const startTime = Date.now();
+      const duration = 8 * 1000; 
+      interval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        
+        if (elapsed >= duration) {
+          setPhase("analyse");
+          setProgressBarPercent(0);
+        }
+      }, 100);
     }
     // Phase 3: Attente du choc
 
@@ -161,7 +181,7 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
       );
     }
 
-    if (phase === "analyse") {
+    if (phase === "pas_de_choc") {
       audioServiceRef.current?.playPasDeChocIndique();
       timers.push(
         setTimeout(() => {
@@ -274,18 +294,12 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
         {phase !== "placement" && (
           <>
             {/* Rangée 1 - En-tête */}
-            <div className="h-1/6 border-b border-gray-600 flex items-center justify-between bg-black text-white text-sm font-mono">
+            <div className="h-1/6 border-b border-gray-600 flex items-center justify-between bg-black text-white text-sm font-mono grid grid-cols-3">
               {/* Section gauche - Info patient */}
               <div className="flex items-center h-full">
-                <div className="bg-orange-500 px-3 py-1 h-full flex flex-col justify-center">
+                <div className="bg-orange-500 px-3 py-1 h-full flex flex-col justify-start">
                   <div className="text-black font-bold text-xs">Adulte</div>
                   <div className="text-black text-xs">≥25 kg</div>
-                </div>
-                <div className="px-3 flex flex-col justify-center">
-                  <div className="text-white text-xs">Non stimulé</div>
-                  <div className="text-white text-xs text-yellow-600 font-semibold ">
-                    Dupont, Samuel
-                  </div>
                 </div>
               </div>
 
@@ -294,7 +308,7 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
               </div>
 
               {/* Section droite - Date et icône */}
-              <div className="flex items-center gap-2 px-3">
+              <div className="flex items-center gap-2 px-3 justify-end">
                 <div className="text-white text-xs">
                   {new Date()
                     .toLocaleDateString("fr-FR", {
@@ -347,6 +361,13 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
                 <div className="h-4 w-full flex items-center justify-center px-4 text-sm bg-white mb-1">
                   <span className="text-black text-xs">
                     Occupez-vous du patient
+                  </span>
+                </div>
+              )}
+              {phase === "pas_de_choc" && (
+                <div className="h-4 w-full flex items-center justify-center px-4 text-sm bg-white mb-1">
+                  <span className="text-black text-xs">
+                    Pas de choc indiqué
                   </span>
                 </div>
               )}

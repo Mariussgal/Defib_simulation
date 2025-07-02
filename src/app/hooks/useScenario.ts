@@ -41,7 +41,13 @@ export const useScenario = () => {
       description: "Tournez la mollette verte pour passer du mode ARRÊT au mode Moniteur",
     },
     {
-      title: "Observer + Analyser le rythme",
+
+      title: "",
+      description: "Observez le tracé ECG sur l'écran pendant quelques secondes",
+    },
+    {
+      title: "",
+
       description: "Arrêter le massage pour analyser le rythme: Fibrillation ventriculaire détectée",
     },
     {
@@ -355,6 +361,16 @@ export const useScenario = () => {
     return [];
   };
 
+  const stopScenario = () => {
+    cleanup();
+    updateState({
+      currentScenario: null,
+      currentStep: 0,
+      showScenarioComplete: false,
+      currentRhythm: state.manualRhythm,
+    });
+  };
+
   return {
     // State
     ...state,
@@ -367,6 +383,7 @@ export const useScenario = () => {
     validateScenarioStep,
     handleManualValidation,
     startScenario,
+    stopScenario,
     handleScenarioSelect,
     handleStartScenarioFromModal,
     toggleStepHelp,

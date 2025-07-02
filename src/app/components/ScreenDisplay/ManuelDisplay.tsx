@@ -4,6 +4,7 @@ import TimerDisplay from "../TimerDisplay";
 import type { RhythmType } from "../graphsdata/ECGRhythms";
 
 interface ManuelDisplayProps {
+
   frequency: string;
   chargeProgress: number;
   shockCount: number;
@@ -12,20 +13,26 @@ interface ManuelDisplayProps {
   showSynchroArrows?: boolean;
   heartRate?: number;
   isCharged?: boolean;
-  onCancelCharge?: () => boolean;
+  onCancelCharge?: () => boolean
 }
 
-const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
+export interface ManuelDisplayRef {
+  triggerCancelCharge: () => boolean;
+}
+
+const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(({
   frequency,
   chargeProgress,
   shockCount,
   isCharging,
   rhythmType = 'sinus',
+
   showSynchroArrows = false,
   heartRate = 70,
   isCharged = false,
   onCancelCharge
 }, ref) => {
+
 
   const [showShockDelivered, setShowShockDelivered] = useState(false);
   const [showCPRMessage, setShowCPRMessage] = useState(false);
@@ -46,6 +53,7 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
     }
   }, [isCharging]);
 
+
   useEffect(() => {
     if (shockCount > 0) {
       clearAllTimers();
@@ -54,6 +62,7 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
         setShowShockDelivered(false);
         setShowCPRMessage(true);
       }, 4000);
+
       timer2Ref.current = setTimeout(() => {
         setShowCPRMessage(false);
       }, 12000); 
@@ -64,6 +73,7 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
   useEffect(() => {
     if (rhythmType === 'fibrillationVentriculaire' || rhythmType === 'fibrillationAtriale') {
       const interval = setInterval(() => setFibBlink(prev => !prev), 500); 
+
       return () => clearInterval(interval);
     }
   }, [rhythmType]);
@@ -79,14 +89,9 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
         <div className="h-1/6 border-b border-gray-600 flex items-center justify-between bg-black text-white text-sm font-mono grid grid-cols-3">
           <div className="flex items-center h-full">
             <div className="bg-orange-500 px-3 py-1 h-full flex flex-col justify-start">
+
               <div className="text-black font-bold text-xs">Adulte</div>
               <div className="text-black text-xs">≥25 kg</div>
-            </div>
-            <div className="px-3 flex flex-col justify-center">
-              <div className="text-white text-xs">Non stimulé</div>
-              <div className="text-white text-xs text-yellow-600 font-semibold ">
-                Dupont, Samuel
-              </div>
             </div>
           </div>
           <div className="flex items-center justify-center">
@@ -108,6 +113,7 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
               </div>
             )}
           </div>
+          
         </div>
 
         {/* Row 2 - Medical Parameters */}
@@ -115,6 +121,9 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
           {/* FC */}
           <div className="flex flex-col">
             {(rhythmType === 'fibrillationVentriculaire' || rhythmType === 'fibrillationAtriale') ? (
+
+              // Composant clignotant pour les fibrillations
+
               <div className="flex items-center justify-center -ml-9">
                 <div className={`px-5 py-0.2 ${fibBlink ? 'bg-red-600' : 'bg-white'}`}>
                   <span className={`text-xs font-bold ${fibBlink ? 'text-white' : 'text-red-600'}`}>
@@ -123,6 +132,9 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
                 </div>
               </div>
             ) : (
+
+              // Affichage normal FC et bpm
+
               <div className="flex flex-row items-center gap-x-2">
                 <div className="text-gray-400 text-xs">FC</div>
                 <div className="text-gray-400 text-xs">bpm</div>
@@ -130,7 +142,7 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
             )}
             <div className="flex flex-row items-center gap-x-2">
               <div className="text-green-400 text-4xl font-bold">
-                {rhythmType === 'fibrillationVentriculaire' ? '--' : rhythmType === 'asystole' ? '0' : heartRate}
+                {rhythmType === 'fibrillationVentriculaire' ? '--' : rhythmType === 'asystole' ? '0' : rhythmType === 'fibrillationAtriale' ? '--' : heartRate}
               </div>
               <div className="text-green-400 text-xs">120</div>
             </div>
@@ -142,7 +154,9 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
               <div className="text-blue-400 text-xs">%</div>
             </div>
             <div className="flex flex-row  gap-x-2">
-              <div className="text-blue-400 text-4xl font-bold">95</div>
+              <div className="text-blue-400 text-4xl font-bold -mt-2">
+                {rhythmType === 'fibrillationVentriculaire' || rhythmType === 'fibrillationAtriale' ? '--' : '95'}
+              </div>
               <div className="flex flex-col items-center">
                 <div className="text-blue-400 text-xs">100</div>
                 <div className="text-blue-400 text-xs">90</div>
@@ -154,7 +168,7 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
             <div className="flex flex-col ">
               <div className="text-blue-400 text-xs">Pouls</div>
               <div className="text-blue-400 text-4xl font-bold">
-                {rhythmType === 'fibrillationVentriculaire' ? '--' : rhythmType === 'asystole' ? '0' : heartRate}
+                {rhythmType === 'fibrillationVentriculaire' ? '--' : rhythmType === 'asystole' ? '0' : rhythmType === 'fibrillationAtriale' ? '--' : heartRate}
               </div>
             </div>
             <div className="flex flex-col ">
@@ -179,12 +193,14 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
           />
         </div>
 
+
         {/* Row 5 & 6 - Messages and Footer */}
         <div className="relative bg-black">
           {isCharged && (
             <div className="h-6 flex items-center justify-center bg-black z-10">
               <div className="bg-white px-2 py-0.2 rounded-xs mt-2">
                 <span className="text-black text-xs font-bold">Délivrez le choc maintenant</span>
+
               </div>
             </div>
           )}
@@ -211,8 +227,11 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
                 <span>Début RCP</span>
               </div>
             </div>
-            <div className="flex gap-2">
-              <div className={`px-2 py-0.5 h-full flex flex-col justify-center text-xs ${
+
+          </div>
+          <div className="flex">
+            <div className="flex items-center gap-2">
+              <div className={`px-2 py-0.5 h-full flex flex-col justify-center text-xs mr-1 ${
                 isCharged ? 'bg-red-500 text-white' : 'bg-gray-500 text-gray-300'
               }`}>
                 <span>Annuler Charge</span>
@@ -226,6 +245,6 @@ const ManuelDisplay: React.FC<ManuelDisplayProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default ManuelDisplay;

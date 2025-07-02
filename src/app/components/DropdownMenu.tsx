@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Settings, Info, Power, FileText } from 'lucide-react';
+import { ChevronDown, Settings, Info, Power, FileText, Github, Home } from 'lucide-react';
 import { useModals } from '../hooks/useModals';
 import AboutModal from './modals/AboutModal';
 import SettingsModal from './modals/SettingsModal';
@@ -16,7 +16,6 @@ interface DropdownMenuProps {
 const DropdownMenu: React.FC<DropdownMenuProps> = ({ 
   onMenuItemSelect, 
   onScenarioSelect, 
-  onModeSelect,
   onStartScenario
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,6 +38,9 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
 
   const handleMenuItemClick = async (action: string) => {
     switch (action) {
+      case 'home':
+        window.location.href = '/';
+        break;
       case 'scenarios':
         modals.openScenariosList();
         break;
@@ -47,6 +49,9 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
         break;
       case 'about':
         modals.openAbout();
+        break;
+      case 'github':
+        window.open('https://github.com/Mariussgal/Defib_simulation', '_blank');
         break;
       case 'reset':
         const confirmed = confirm('Redémarrer le simulateur ?');
@@ -68,6 +73,12 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
 
   const menuItems = [
     {
+      id: 'home',
+      label: 'Accueil',
+      icon: <Home className="w-4 h-4" />,
+    },
+    { id: 'separator_1', label: 'separator' },
+    {
       id: 'scenarios',
       label: 'Scénarios',
       icon: <FileText className="w-4 h-4" />,
@@ -82,6 +93,11 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
       id: 'about',
       label: 'À propos',
       icon: <Info className="w-4 h-4" />,
+    },
+    {
+      id: 'github',
+      label: 'GitHub',
+      icon: <Github className="w-4 h-4" />,
     },
     { id: 'separator_2', label: 'separator' },
     {

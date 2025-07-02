@@ -1,6 +1,6 @@
-import React from 'react';
-import { FileText, X, ChevronDown } from 'lucide-react';
-import { SCENARIOS, COLOR_CLASSES } from '../../data/scenarios';
+import React from "react";
+import { FileText, X, ChevronDown } from "lucide-react";
+import { SCENARIOS, COLOR_CLASSES } from "../../data/scenarios";
 
 interface ScenariosListModalProps {
   isOpen: boolean;
@@ -8,10 +8,10 @@ interface ScenariosListModalProps {
   onScenarioSelect: (scenarioId: string) => void;
 }
 
-const ScenariosListModal: React.FC<ScenariosListModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  onScenarioSelect 
+const ScenariosListModal: React.FC<ScenariosListModalProps> = ({
+  isOpen,
+  onClose,
+  onScenarioSelect,
 }) => {
   if (!isOpen) return null;
 
@@ -25,12 +25,12 @@ const ScenariosListModal: React.FC<ScenariosListModalProps> = ({
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         <div className="grid gap-4 overflow-y-auto flex-1 pr-2">
           {SCENARIOS.map((scenario) => (
             <button
@@ -39,23 +39,25 @@ const ScenariosListModal: React.FC<ScenariosListModalProps> = ({
                 onScenarioSelect(scenario.id);
                 onClose();
               }}
-              className={`p-4 rounded-lg border-2 ${COLOR_CLASSES[scenario.color]} transition-all duration-200 text-left hover:scale-105`}
+              className={`p-4 rounded-lg border-2 ${COLOR_CLASSES[scenario.color]} transition-all duration-200 text-left `}
             >
-                             <div className="flex items-start gap-4">
-                 <div className="text-2xl">{scenario.icon}</div>
-                 <div className="flex-1">
-                   <h3 className="font-semibold text-white mb-1">{scenario.title}</h3>
-                 </div>
-                 <ChevronDown className="w-4 h-4 text-gray-400 -rotate-90" />
-               </div>
+              <div className="flex items-start gap-4">
+                <div className="text-2xl">{scenario.icon}</div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-white mb-1">
+                    {scenario.title}
+                  </h3>
+                </div>
+                <ChevronDown className="w-4 h-4 text-gray-400 -rotate-90" />
+              </div>
             </button>
           ))}
         </div>
-        
+
         <div className="mt-6 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+            className="px-4 py-2 bg-gray-600 bg-gray-700 text-white rounded-lg transition-colors"
           >
             Fermer
           </button>
@@ -65,4 +67,4 @@ const ScenariosListModal: React.FC<ScenariosListModalProps> = ({
   );
 };
 
-export default ScenariosListModal; 
+export default ScenariosListModal;
