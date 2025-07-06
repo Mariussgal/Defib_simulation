@@ -23,6 +23,8 @@ export interface DefibrillatorState {
   selectedChannel: number;
   
   isSynchroMode: boolean;
+
+  lastEvent: string | null;
 }
 
 export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?: number) => {
@@ -36,7 +38,9 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
     isChargeButtonPressed: false,
     isShockButtonPressed: false,
     selectedChannel: 1,
-    isSynchroMode: false, // NOUVEAU : état du mode synchro
+    isSynchroMode: false,
+    lastEvent: null, 
+
   });
 
   // AudioService reference
@@ -53,6 +57,10 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
 
   const updateState = (updates: Partial<DefibrillatorState>) => {
     setState(prev => ({ ...prev, ...updates }));
+  };
+
+  const clearLastEvent = () => {
+    updateState({ lastEvent: null });
   };
 
   // Actions
@@ -79,6 +87,7 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
       isCharging: true,
       chargeProgress: 0,
       isCharged: false,
+      lastEvent: "chargeStarted"
     });
 
     // charging sound manual mode
@@ -119,6 +128,7 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
       shockCount: newShockCount,
       isCharged: false,
       chargeProgress: 0,
+      lastEvent: 'shockDelivered', 
     });
 
     if (audioServiceRef.current) {
@@ -129,15 +139,6 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
       setTimeout(() => {
         audioServiceRef.current?.playCommencerRCP();
       }, 2000);
-    }
-
-    // Show notification only if not in scenario
-    if (!isInScenario || !isInScenario()) {
-      NotificationService.showShockDelivered({
-        energy: 150, // Default energy value for notification
-        shockNumber: newShockCount,
-        frequency: currentHeartRate || 120, 
-      });
     }
   };
 
@@ -200,5 +201,7 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
     stopCharging,
     setSelectedChannel,
     toggleSynchroMode, 
+    clearLastEvent,
+    updateState,
   };
 };
