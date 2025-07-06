@@ -23,6 +23,8 @@ export interface DefibrillatorState {
   selectedChannel: number;
   
   isSynchroMode: boolean;
+
+  lastEvent: string | null;
 }
 
 export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?: number) => {
@@ -37,6 +39,8 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
     isShockButtonPressed: false,
     selectedChannel: 1,
     isSynchroMode: false,
+    lastEvent: null, 
+
   });
 
   // AudioService reference
@@ -55,31 +59,8 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
     setState(prev => ({ ...prev, ...updates }));
   };
 
-  const resetDefibrillatorStates = () => {
-    if (audioServiceRef.current) {
-      audioServiceRef.current.stopAll();
-      audioServiceRef.current.clearRepetition();
-      audioServiceRef.current.stopFCBeepSequence();
-      audioServiceRef.current.stopFVAlarmSequence();
-    }
-
-    if (chargeIntervalRef.current) {
-      clearInterval(chargeIntervalRef.current);
-      chargeIntervalRef.current = null;
-    }
-
-    setState({
-      displayMode: "ARRET", 
-      manualFrequency: "1-10",
-      isCharging: false,
-      chargeProgress: 0,
-      shockCount: 0,
-      isCharged: false,
-      isChargeButtonPressed: false,
-      isShockButtonPressed: false,
-      selectedChannel: 1,
-      isSynchroMode: false,
-    });
+  const clearLastEvent = () => {
+    updateState({ lastEvent: null });
   };
 
   // Actions
@@ -106,6 +87,7 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
       isCharging: true,
       chargeProgress: 0,
       isCharged: false,
+      lastEvent: "chargeStarted"
     });
 
     // charging sound manual mode
@@ -146,6 +128,7 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
       shockCount: newShockCount,
       isCharged: false,
       chargeProgress: 0,
+      lastEvent: 'shockDelivered', 
     });
 
     if (audioServiceRef.current) {
@@ -156,15 +139,6 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
       setTimeout(() => {
         audioServiceRef.current?.playCommencerRCP();
       }, 2000);
-    }
-
-    // Show notification only if not in scenario
-    if (!isInScenario || !isInScenario()) {
-      NotificationService.showShockDelivered({
-        energy: 150, // Default energy value for notification
-        shockNumber: newShockCount,
-        frequency: currentHeartRate || 120, 
-      });
     }
   };
 
@@ -226,7 +200,8 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
     cancelCharge,
     stopCharging,
     setSelectedChannel,
-    toggleSynchroMode,
-    resetDefibrillatorStates, 
+    toggleSynchroMode, 
+    clearLastEvent,
+    updateState,
   };
 };
