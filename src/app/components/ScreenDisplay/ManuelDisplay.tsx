@@ -94,20 +94,7 @@ const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(({
     setShowCPRMessage(false);
   }, [displayMode]);
 
-  const handleDelayedShock = () => {
-    if (!isScenario4 || !isCharged) return;
-    
-    delayTimerRef.current = setTimeout(() => {
-      if (onDelayedShock) {
-        onDelayedShock();
-      }
-    }, 5000);
-  };
 
-  useImperativeHandle(ref, () => ({
-    triggerCancelCharge: () => onCancelCharge ? onCancelCharge() : false,
-    triggerDelayedShock: handleDelayedShock
-  }));
 
 
 
