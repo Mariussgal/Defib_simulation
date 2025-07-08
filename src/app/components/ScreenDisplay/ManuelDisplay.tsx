@@ -119,60 +119,9 @@ const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(
       setShowCPRMessage(false);
     }, [displayMode]);
 
-    const handleDelayedShock = () => {
-      if (!isScenario4 || !isCharged || isDelayedShockPending) return;
 
-      setIsDelayedShockPending(true);
 
-      delayTimerRef.current = setTimeout(() => {
-        setIsDelayedShockPending(false);
-        if (onDelayedShock) {
-          onDelayedShock();
-        }
-      }, 5000);
-    };
 
-    // Initialize AudioService
-    useEffect(() => {
-      if (typeof window !== "undefined" && !audioServiceRef.current) {
-        audioServiceRef.current = new AudioService();
-      }
-    }, []);
-
-    useEffect(() => {
-      if (audioServiceRef.current) {
-        if (!showFCValue) {
-          audioServiceRef.current.stopFVAlarmSequence();
-          audioServiceRef.current.startFCBeepSequence();
-        } else if (
-          rhythmType === "fibrillationVentriculaire" ||
-          rhythmType === "fibrillationAtriale" ||
-          rhythmType === "tachycardieVentriculaire" ||
-          rhythmType === "asystole"
-        ) {
-          // FV alarm only if FC is shown
-          audioServiceRef.current.stopFCBeepSequence();
-          audioServiceRef.current.startFVAlarmSequence();
-        } else {
-          // Stop all beeps if FC is shown and no FV
-          audioServiceRef.current.stopFCBeepSequence();
-          audioServiceRef.current.stopFVAlarmSequence();
-        }
-      }
-
-      // Cleanup function to stop all beeping when component unmounts
-      return () => {
-        if (audioServiceRef.current) {
-          audioServiceRef.current.stopFCBeepSequence();
-          audioServiceRef.current.stopFVAlarmSequence();
-        }
-      };
-    }, [showFCValue, rhythmType]);
-
-    useImperativeHandle(ref, () => ({
-      triggerCancelCharge: () => (onCancelCharge ? onCancelCharge() : false),
-      triggerDelayedShock: handleDelayedShock,
-    }));
 
     return (
       <div className="absolute inset-3 bg-gray-900 rounded-lg">

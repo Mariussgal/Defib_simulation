@@ -59,6 +59,12 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
     setState(prev => ({ ...prev, ...updates }));
   };
 
+  const incrementShockCount = () => {
+    updateState({
+      shockCount: state.shockCount + 1,
+      lastEvent: 'shockDelivered',
+    });
+  };
   const clearLastEvent = () => {
     updateState({ lastEvent: null });
   };
@@ -119,26 +125,37 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
   const deliverShock = () => {
     if (!state.isCharged) return;
 
-    // Button animation
+    // Animate the button press immediately for user feedback
     updateState({ isShockButtonPressed: true });
     setTimeout(() => updateState({ isShockButtonPressed: false }), 500);
 
-    const newShockCount = state.shockCount + 1;
-    updateState({
-      shockCount: newShockCount,
-      isCharged: false,
-      chargeProgress: 0,
-      lastEvent: 'shockDelivered', 
-    });
+    // This function contains the core shock logic
+    const executeShock = () => {
+      const newShockCount = state.shockCount + 1;
+      updateState({
+        shockCount: newShockCount,
+        isCharged: false,
+        chargeProgress: 0,
+        lastEvent: 'shockDelivered',
+      });
 
-    if (audioServiceRef.current) {
-      // Stop all ongoing sounds 
-      audioServiceRef.current.stopAll();
-      audioServiceRef.current.playDAEChocDelivre();
-      
-      setTimeout(() => {
-        audioServiceRef.current?.playCommencerRCP();
-      }, 2000);
+      if (audioServiceRef.current) {
+        // Stop all ongoing sounds
+        audioServiceRef.current.stopAll();
+        audioServiceRef.current.playDAEChocDelivre();
+
+        setTimeout(() => {
+          audioServiceRef.current?.playCommencerRCP();
+        }, 2000);
+      }
+    };
+
+    // If a delay is provided, wait before executing the shock.
+    // Otherwise, execute it immediately.
+    if (state.isSynchroMode) {
+      setTimeout(executeShock, 5000);
+    } else {
+      executeShock();
     }
   };
 
@@ -203,5 +220,6 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
     toggleSynchroMode, 
     clearLastEvent,
     updateState,
+    incrementShockCount
   };
 };

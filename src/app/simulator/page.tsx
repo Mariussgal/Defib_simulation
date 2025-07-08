@@ -44,6 +44,8 @@ const SimulatorPage: React.FC = () => {
   const [targetMode, setTargetMode] = useState<DisplayMode | null>(null);
   const [bootProgress, setBootProgress] = useState(0);
   const [isShockButtonBlinking, setIsShockButtonBlinking] = useState(false);
+  const [lastJoystickAngle, setLastJoystickAngle] = useState(0);
+  const joystickRotationThreshold = 30; // degrees
 
   // --- Timers ---
   const bootTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -113,14 +115,83 @@ const SimulatorPage: React.FC = () => {
   const handleShockButtonClick = () => {
     if (defibrillator.displayMode === "DAE" && daePhase === "attente_choc" && daeShockFunction) {
       daeShockFunction();
+      defibrillator.incrementShockCount();
     } else if (defibrillator.displayMode === "Manuel") {
       defibrillator.deliverShock();
     }
   };
   const handleSynchroButtonClick = () => defibrillator.toggleSynchroMode();
   
-  const handleJoystickRotation = (angle: number) => { /* ... */ };
-  const handleJoystickClick = () => { /* ... */ };
+  const handleJoystickRotation = (angle: number) => {
+    const angleDiff = angle - lastJoystickAngle;
+    
+    // Gérer le passage de 360° à 0° et vice versa
+    let normalizedDiff = angleDiff;
+    if (angleDiff > 180) {
+      normalizedDiff = angleDiff - 360;
+    } else if (angleDiff < -180) {
+      normalizedDiff = angleDiff + 360;
+    }
+
+    // Déclencher l'action si le seuil est dépassé
+    if (Math.abs(normalizedDiff) > joystickRotationThreshold) {
+      // Mode Stimulateur
+      if (defibrillator.displayMode === "Stimulateur" && stimulateurDisplayRef.current) {
+        const isEditingValue = stimulateurDisplayRef.current.isInValueEditMode();
+        
+        if (normalizedDiff > 0) {
+          if (isEditingValue) {
+            // Mode édition → Augmenter la valeur
+            stimulateurDisplayRef.current.incrementValue();
+          } else {
+            // Mode navigation → Descendre dans le menu
+            stimulateurDisplayRef.current.navigateDown();
+          }
+        } else {
+          if (isEditingValue) {
+            // Mode édition → Diminuer la valeur
+            stimulateurDisplayRef.current.decrementValue();
+          } else {
+            // Mode navigation → Remonter dans le menu
+            stimulateurDisplayRef.current.navigateUp();
+          }
+        }
+        setLastJoystickAngle(angle);
+      }
+      // Mode Moniteur
+      else if (defibrillator.displayMode === "Moniteur" && monitorDisplayRef.current) {
+        const isEditingValue = monitorDisplayRef.current.isInValueEditMode();
+        
+        if (normalizedDiff > 0) {
+          if (isEditingValue) {
+            // Mode édition → Augmenter la valeur
+            monitorDisplayRef.current.incrementValue();
+          } else {
+            // Mode navigation → Descendre dans le menu
+            monitorDisplayRef.current.navigateDown();
+          }
+        } else {
+          if (isEditingValue) {
+            // Mode édition → Diminuer la valeur
+            monitorDisplayRef.current.decrementValue();
+          } else {
+            // Mode navigation → Remonter dans le menu
+            monitorDisplayRef.current.navigateUp();
+          }
+        }
+        setLastJoystickAngle(angle);
+      }
+    }
+  };
+
+  // Gestionnaire pour les clics du joystick (sélectionne l'élément en surbrillance)
+  const handleJoystickClick = () => {
+    if (defibrillator.displayMode === "Stimulateur" && stimulateurDisplayRef.current) {
+      stimulateurDisplayRef.current.selectCurrentItem();
+    } else if (defibrillator.displayMode === "Moniteur" && monitorDisplayRef.current) {
+      monitorDisplayRef.current.selectCurrentItem();
+    }
+  };
   const handleStimulatorSettingsButton = () => stimulateurDisplayRef.current?.triggerReglagesStimulateur();
   const handleStimulatorMenuButton = () => stimulateurDisplayRef.current?.triggerMenu();
   const handleStimulatorStartButton = () => stimulateurDisplayRef.current?.triggerStimulation();
@@ -168,7 +239,7 @@ const SimulatorPage: React.FC = () => {
       case "ARRET": return <ARRETDisplay />;
       case "DAE": return <DAEDisplay {...{...defibrillator, rhythmType: effectiveRhythm, heartRate: effectiveHeartRate, onPhaseChange: handleDaePhaseChange, onShockReady: handleDaeShockReady, onElectrodePlacementValidated: electrodeValidation.validateElectrodes}} />;
       case "Moniteur": return <MonitorDisplay ref={monitorDisplayRef} rhythmType={effectiveRhythm} showSynchroArrows={defibrillator.isSynchroMode} heartRate={effectiveHeartRate} />;
-      case "Manuel": return <ManuelDisplay ref={manuelDisplayRef} {...{...defibrillator, rhythmType: effectiveRhythm, heartRate: effectiveHeartRate, onCancelCharge: defibrillator.cancelCharge, onDelayedShock: defibrillator.deliverShock}} />;
+      case "Manuel": return <ManuelDisplay ref={manuelDisplayRef} {...{...defibrillator, rhythmType: effectiveRhythm, heartRate: effectiveHeartRate, onCancelCharge: defibrillator.cancelCharge}} />;
       case "Stimulateur": return <StimulateurDisplay ref={stimulateurDisplayRef} rhythmType={effectiveRhythm} showSynchroArrows={defibrillator.isSynchroMode} heartRate={effectiveHeartRate} />;
       default: return <ARRETDisplay />;
     }
@@ -179,6 +250,7 @@ const SimulatorPage: React.FC = () => {
     renderScreenContent,
     handleRotaryValueChange,
     handleChargeButtonClick,
+    handleCancelChargeButton: defibrillator.cancelCharge,
     handleShockButtonClick,
     handleSynchroButtonClick,
     handleJoystickRotation,
@@ -186,7 +258,6 @@ const SimulatorPage: React.FC = () => {
     handleStimulatorSettingsButton,
     handleStimulatorMenuButton,
     handleStimulatorStartButton,
-    handleCancelChargeButton,
     handleMonitorMenuButton,
     isShockButtonBlinking,
     daePhase,
