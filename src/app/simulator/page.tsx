@@ -70,6 +70,7 @@ const SimulatorPage: React.FC = () => {
     setManualRhythm('sinus');
     setManualHeartRate(70);
     defibrillator.setDisplayMode('ARRET');
+    defibrillator.cancelCharge();
   };
 
   // --- Event Handlers ---
@@ -240,7 +241,20 @@ const SimulatorPage: React.FC = () => {
       case "DAE": return <DAEDisplay {...{...defibrillator, rhythmType: effectiveRhythm, heartRate: effectiveHeartRate, onPhaseChange: handleDaePhaseChange, onShockReady: handleDaeShockReady, onElectrodePlacementValidated: electrodeValidation.validateElectrodes}} />;
       case "Moniteur": return <MonitorDisplay ref={monitorDisplayRef} rhythmType={effectiveRhythm} showSynchroArrows={defibrillator.isSynchroMode} heartRate={effectiveHeartRate} />;
       case "Manuel": return <ManuelDisplay ref={manuelDisplayRef} {...{...defibrillator, rhythmType: effectiveRhythm, heartRate: effectiveHeartRate, onCancelCharge: defibrillator.cancelCharge}} />;
-      case "Stimulateur": return <StimulateurDisplay ref={stimulateurDisplayRef} rhythmType={effectiveRhythm} showSynchroArrows={defibrillator.isSynchroMode} heartRate={effectiveHeartRate} />;
+      case "Stimulateur": return <StimulateurDisplay 
+      ref={stimulateurDisplayRef} 
+      rhythmType={effectiveRhythm} 
+      showSynchroArrows={defibrillator.isSynchroMode} 
+      heartRate={effectiveHeartRate} 
+      pacerFrequency={defibrillator.pacerFrequency}
+      pacerIntensity={defibrillator.pacerIntensity}
+      onFrequencyChange={defibrillator.setPacerFrequency}
+      onIntensityChange={defibrillator.setPacerIntensity}
+      pacerMode={defibrillator.pacerMode}
+      isPacing={defibrillator.isPacing}
+      onPacerModeChange={defibrillator.setPacerMode}
+      onTogglePacing={defibrillator.toggleIsPacing}
+  />;
       default: return <ARRETDisplay />;
     }
   };
