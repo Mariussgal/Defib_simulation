@@ -67,6 +67,16 @@ export const SCENARIOS: Scenario[] = [
     ],
     color: 'green',
     icon: '💚'
+  },
+  {
+    id: 'scenario_5',
+    title: 'Scénario 5 - Simulation in situ',
+    description: 'SMUR',
+    objectives: [
+      
+    ],
+    color: 'orange',
+    icon: '🚑'
   }
 ];
 

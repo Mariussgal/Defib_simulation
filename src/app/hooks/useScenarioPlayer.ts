@@ -55,6 +55,7 @@ export const useScenarioPlayer = (
     const [isActive, setIsActive] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
     const [failureMessage, setFailureMessage] = useState<string | null>(null);
+    const [showStepNotifications, setShowStepNotifications] = useState(false); // New state for visibility
 
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const timeoutCompletedEvent = "timeoutCompleted";
@@ -111,9 +112,7 @@ export const useScenarioPlayer = (
             }
         }
 
-        // Check if we can advance from the current step
         if (areStepConditionsMet(activeStep, defibrillator)) {
-            // The user has completed the current step. Advance to the next one.
             if (activeStep.onComplete) {
                 activeStep.onComplete.forEach(task => {
                     if (task.action === 'updateState') {
@@ -132,7 +131,6 @@ export const useScenarioPlayer = (
             } else {
                 setCurrentStepIndex(nextStepIndex);
             }
-
         }
 
     }, [defibrillator, scenarioConfig, isActive, currentStepIndex, isComplete, failureMessage, areStepConditionsMet]);
@@ -146,7 +144,6 @@ export const useScenarioPlayer = (
         const step = scenarioConfig.steps[currentStepIndex];
         if (!step) return;
 
-        // CORRECTED LOGIC: Check for timeout at the top level
         const timeoutCondition =
             step.validation.type === 'timeout' ? step.validation :
                 step.validation.all_of?.find(c => c.type === 'timeout') ||
@@ -172,6 +169,10 @@ export const useScenarioPlayer = (
         }
     }, [isComplete]);
 
+    const toggleStepNotifications = useCallback(() => {
+        setShowStepNotifications(prev => !prev);
+    }, []);
+
     const startScenario = (config: ScenarioConfig) => {
         setScenarioConfig(config);
 
@@ -180,7 +181,8 @@ export const useScenarioPlayer = (
             lastEvent: null,
             isCharging: false,
             isCharged: false,
-            chargeProgress: 0
+            chargeProgress: 0,
+            shockCount: 0
         });
 
         defibrillator.updateState(config.initialState);
@@ -189,13 +191,15 @@ export const useScenarioPlayer = (
         setIsComplete(false);
         setFailureMessage(null);
         setIsActive(true);
+        setShowStepNotifications(false); // Ensure notifications are hidden by default
     };
 
     const stopScenario = () => {
         setIsActive(false);
-        setIsComplete(false); // Also reset completion state
-        setFailureMessage(null); // Reset failure message
+        setIsComplete(false);
+        setFailureMessage(null);
         setScenarioConfig(null);
+        setShowStepNotifications(false); // Reset on stop
         if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
         }
@@ -207,6 +211,8 @@ export const useScenarioPlayer = (
         scenarioConfig,
         isComplete,
         failureMessage,
+        showStepNotifications, // Export new state
+        toggleStepNotifications, // Export new function
         startScenario,
         stopScenario,
     };
