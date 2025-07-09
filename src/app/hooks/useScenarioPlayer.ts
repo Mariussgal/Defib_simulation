@@ -86,7 +86,6 @@ export const useScenarioPlayer = (
 
 
     // --- Main Scenario Engine ---
-
     useEffect(() => {
         if (!isActive || !scenarioConfig || isComplete || failureMessage) {
             return;
@@ -112,8 +111,9 @@ export const useScenarioPlayer = (
             }
         }
 
+        // Check if we can advance from the current step
         if (areStepConditionsMet(activeStep, defibrillator)) {
-
+            // The user has completed the current step. Advance to the next one.
             if (activeStep.onComplete) {
                 activeStep.onComplete.forEach(task => {
                     if (task.action === 'updateState') {
@@ -128,15 +128,11 @@ export const useScenarioPlayer = (
 
             const nextStepIndex = currentStepIndex + 1;
             if (nextStepIndex >= scenarioConfig.steps.length) {
-                // The scenario is complete, but we keep it active to show the final state and notifications.
                 setIsComplete(true);
             } else {
                 setCurrentStepIndex(nextStepIndex);
             }
 
-            setTimeout(() => {
-                defibrillator.clearLastEvent();
-            }, 0);
         }
 
     }, [defibrillator, scenarioConfig, isActive, currentStepIndex, isComplete, failureMessage, areStepConditionsMet]);
@@ -148,10 +144,18 @@ export const useScenarioPlayer = (
         if (!isActive || !scenarioConfig) return;
 
         const step = scenarioConfig.steps[currentStepIndex];
-        if (step?.validation.type === 'timeout') {
+        if (!step) return;
+
+        // CORRECTED LOGIC: Check for timeout at the top level
+        const timeoutCondition =
+            step.validation.type === 'timeout' ? step.validation :
+                step.validation.all_of?.find(c => c.type === 'timeout') ||
+                step.validation.any_of?.find(c => c.type === 'timeout');
+
+        if (timeoutCondition && timeoutCondition.duration) {
             timeoutRef.current = setTimeout(() => {
                 defibrillator.updateState({ lastEvent: timeoutCompletedEvent });
-            }, step.validation.duration);
+            }, timeoutCondition.duration);
         }
 
         return () => {
