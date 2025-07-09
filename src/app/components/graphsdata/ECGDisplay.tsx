@@ -9,6 +9,10 @@ interface ECGDisplayProps {
   heartRate?: number;
   durationSeconds?: number;
   isDottedAsystole?: boolean;
+  // New props for pacing
+  isPacing?: boolean;
+  pacerFrequency?: number;
+  pacerIntensity?: number;
 }
 
 const ECGDisplay: React.FC<ECGDisplayProps> = ({
@@ -19,6 +23,10 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
   heartRate = 70,
   durationSeconds = 7,
   isDottedAsystole = false,
+  // Default values for new props
+  isPacing = false,
+  pacerFrequency = 70,
+  pacerIntensity = 30,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
@@ -34,83 +42,91 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
   const lastYRef = useRef<number | null>(null);
 
   // A ref to hold the latest props, accessible from the animation loop without re-triggering effects
-  const propsRef = useRef({
-    showSynchroArrows,
-    durationSeconds,
-    rhythmType,
-    heartRate,
-    isDottedAsystole,
-  });
+  const propsRef = useRef({ showSynchroArrows, durationSeconds, rhythmType, heartRate, isDottedAsystole, isPacing, pacerFrequency, pacerIntensity });
   useEffect(() => {
-    propsRef.current = {
-      showSynchroArrows,
-      durationSeconds,
-      rhythmType,
-      heartRate,
-      isDottedAsystole,
-    };
+    propsRef.current = { showSynchroArrows, durationSeconds, rhythmType, heartRate, isDottedAsystole, isPacing, pacerFrequency, pacerIntensity };
   });
 
-  // Effect for Data Loading and Peak Pre-computation. Runs only when data-related props change.
+  // Effect for Data Loading and Peak/Spike Pre-computation.
   useEffect(() => {
-    const { rhythmType, heartRate } = propsRef.current;
+    const { rhythmType, heartRate, isPacing, pacerFrequency, pacerIntensity } = propsRef.current;
+    
+    const SAMPLING_RATE = 250;
+    const CAPTURE_THRESHOLD = 90; // Intensity in mA to achieve capture
 
-    // Get the full data buffer for the selected rhythm.
-    const newBuffer = getRhythmData(rhythmType, heartRate);
-    dataRef.current = newBuffer;
-
-    // Pre-compute R-Peak candidates for the new buffer
+    let newBuffer: number[];
     const newPeakCandidates = new Set<number>();
+    const newPacingSpikes = new Set<number>();
 
-    const excludedRhythms: RhythmType[] = [
-      "fibrillationVentriculaire",
-      "asystole",
-    ];
-
-    if (!excludedRhythms.includes(rhythmType)) {
-      const min = Math.min(...newBuffer);
-      const max = Math.max(...newBuffer);
-      const threshold = min + (max - min) * 0.7;
-      const searchWindowRadius = 5;
-      const refractoryPeriodSamples = 38; // 152ms @ 250Hz
-
-      for (let i = 0; i < newBuffer.length; i++) {
-        const value = newBuffer[i];
-        if (value < threshold) continue;
-
-        let isWindowMax = true;
-        for (let j = 1; j <= searchWindowRadius; j++) {
-          if (
-            value < newBuffer[(i - j + newBuffer.length) % newBuffer.length] ||
-            value < newBuffer[(i + j) % newBuffer.length]
-          ) {
-            isWindowMax = false;
-            break;
+    if (isPacing) {
+      if (pacerIntensity >= CAPTURE_THRESHOLD) {
+          // --- Full Capture ---
+          newBuffer = getRhythmData('electroEntrainement', pacerFrequency);
+          // Find spikes in the generated 'electroEntrainement' data
+          for (let i = 1; i < newBuffer.length; i++) {
+              if (newBuffer[i] - newBuffer[i - 1] >= 0.4) {
+                  newPacingSpikes.add(i);
+              }
           }
-        }
-        if (isWindowMax) {
-          newPeakCandidates.add(i);
-          i += refractoryPeriodSamples;
-        }
-      }
-    }
+      } else {
+          // --- Incomplete Capture (No Capture) ---
+          // 1. Generate the underlying BAV3 rhythm
+          newBuffer = getRhythmData('bav3', heartRate);
 
+          // 2. Calculate where pacing spikes should appear as an overlay
+          const spikeIntervalSamples = Math.floor((60 / pacerFrequency) * SAMPLING_RATE);
+          for (let i = spikeIntervalSamples; i < newBuffer.length; i += spikeIntervalSamples) {
+              newPacingSpikes.add(i);
+          }
+      }
+  } else {
+      // --- Standard (Not Pacing) Logic ---
+      newBuffer = getRhythmData(rhythmType, heartRate);
+      
+      const excludedRhythms: RhythmType[] = ['fibrillationVentriculaire', 'asystole'];
+      if (!excludedRhythms.includes(rhythmType)) {
+          const refractoryPeriodSamples = 38; // ~150ms at 250Hz, to prevent T-wave detection
+          const derivativeThreshold = 0.1; // Threshold for detecting a steep slope (part of QRS)
+
+          for (let i = 1; i < newBuffer.length; i++) {
+              // Calculate the first derivative (difference between samples)
+              const diff = newBuffer[i] - newBuffer[i - 1];
+
+              // Check if the slope is steep enough, indicating a QRS complex
+              if (Math.abs(diff) > derivativeThreshold) {
+                  // Found a steep part. Now, find the actual peak (highest point)
+                  // in the immediate vicinity to pinpoint the R-wave.
+                  let peakIndex = i;
+                  let peakValue = newBuffer[i];
+                  const searchWindow = 15; // How far ahead to look for the true peak
+
+                  for (let j = 1; j < searchWindow && (i + j) < newBuffer.length; j++) {
+                      if (newBuffer[i + j] > peakValue) {
+                          peakValue = newBuffer[i + j];
+                          peakIndex = i + j;
+                      }
+                  }
+                  
+                  // Add the found peak to our set of candidates
+                  newPeakCandidates.add(peakIndex);
+                  
+                  // Skip forward by the refractory period to avoid re-detecting the same QRS complex
+                  // or mistaking a T-wave for a new R-wave.
+                  i = peakIndex + refractoryPeriodSamples;
+              }
+          }
+      }
+  }
+
+    dataRef.current = newBuffer;
     peakCandidateIndicesRef.current = newPeakCandidates;
+    pacingSpikeIndicesRef.current = newPacingSpikes;
     normalizationRef.current = {
       min: Math.min(...newBuffer),
       max: Math.max(...newBuffer),
     };
-    const newPacingSpikes = new Set<number>();
-    if (rhythmType === "electroEntrainement") {
-      for (let i = 1; i < newBuffer.length; i++) {
-        // A pacing spike is characterized by a very large, sudden positive jump.
-        if (newBuffer[i] - newBuffer[i - 1] >= 0.4) {
-          newPacingSpikes.add(i);
-        }
-      }
-    }
-    pacingSpikeIndicesRef.current = newPacingSpikes;
-  }, [rhythmType, heartRate]); // Triggered only when the rhythm or its rate changes.
+  }, [rhythmType, heartRate, isPacing, pacerFrequency, pacerIntensity]); // Updated dependencies
+
 
   // Effect for Animation and Drawing. Runs only when canvas dimensions change.
   useEffect(() => {
@@ -128,15 +144,13 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
     const getNormalizedY = (value: number) => {
       const { min, max } = normalizationRef.current;
       const range = max - min;
-      const topMargin = height * 0.1;
+      const topMargin = height * 0.3;
       const bottomMargin = height * 0.1;
       const traceHeight = height - topMargin - bottomMargin;
       const normalizedValue = range === 0 ? 0.5 : (value - min) / range;
       const canvasCenter = topMargin + traceHeight / 2;
       const { rhythmType } = propsRef.current;
-      if (rhythmType === "electroEntrainement" || rhythmType === "choc") {
-        // For pacing, use a fixed gain (pixels per mV) and center the trace.
-        // This causes large spikes to go off-screen (clipping).
+      if (rhythmType === 'electroEntrainement'  || rhythmType === 'choc' || propsRef.current.isPacing) {
         const gain = 40; // 20px per 1mV
         return (canvasCenter - value * gain) / 0.6;
       } else {
@@ -164,16 +178,26 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
     };
 
     const drawArrow = (x: number) => {
-      ctx.fillStyle = "#FFFFFF";
+      ctx.fillStyle = '#FFFFFF';
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+
+      // Draw the arrow shaft
       ctx.beginPath();
-      ctx.moveTo(x, 15);
-      ctx.lineTo(x - 5, 5);
-      ctx.lineTo(x + 5, 5);
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, 10);
+      ctx.stroke();
+
+      // Draw the arrowhead
+      ctx.beginPath();
+      ctx.moveTo(x, 15);      // Tip
+      ctx.lineTo(x - 4, 10);  // Top-left
+      ctx.lineTo(x + 4, 10);  // Top-right
       ctx.closePath();
       ctx.fill();
-    };
-    const drawPacingSpike = (x: number) => {
-      ctx.strokeStyle = "white";
+  };
+    const drawPacingSpike = ( x: number) => {
+      ctx.strokeStyle = 'white';
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(x, 0);
@@ -205,8 +229,7 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
 
       const oldAccumulator = scanAccumulatorRef.current;
       scanAccumulatorRef.current += pixelsToAdvance;
-
-      // The number of samples that should be visible on screen at any time
+      
       const samplesOnScreen = durationSeconds * samplingRate;
       const samplesPerPixel = samplesOnScreen / width;
 
@@ -214,64 +237,52 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
       const newScanX = Math.floor(scanAccumulatorRef.current);
 
       for (let currentX = oldScanX; currentX < newScanX; currentX++) {
-        const x = currentX % width;
-
-        // Calculate the starting sample of the current visible window
-        const windowOffset = Math.floor(currentX - x);
-        const startSampleOfWindow = Math.floor(windowOffset * samplesPerPixel);
-
-        // Calculate the sample within the window corresponding to the current pixel
-        const sampleInWindow = Math.floor(x * samplesPerPixel);
-
-        // The final index into the master data buffer
-        const sampleIndex =
-          (startSampleOfWindow + sampleInWindow) % data.length;
+          const x = currentX % width;
+          
+          const windowOffset = Math.floor(currentX - x); 
+          const startSampleOfWindow = Math.floor(windowOffset * samplesPerPixel);
+          const sampleInWindow = Math.floor(x * samplesPerPixel);
+          const sampleIndex = (startSampleOfWindow + sampleInWindow) % data.length;
 
         const barX = (x + 2) % width;
         ctx.fillStyle = "black";
         ctx.fillRect(barX, 0, 3, height);
         drawGridColumn(barX);
 
-        const { isDottedAsystole } = propsRef.current;
-
-        if (isDottedAsystole) {
-          const centerY = height / 2;
-          const dotPattern = 4;
-          const dotSize = 2;
-
-          if (x % dotPattern === 0) {
-            ctx.fillStyle = "#00ff00";
-            ctx.fillRect(x, centerY - dotSize / 2, dotSize, dotSize);
-          }
-          lastYRef.current = centerY;
-        } else {
-          // Mode ECG normal
-          const value = data[sampleIndex];
-          const currentY = getNormalizedY(value);
-          ctx.strokeStyle = "#00ff00";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          if (
-            lastYRef.current !== null &&
-            x > 0 &&
-            x - 1 === (currentX - 1) % width
-          ) {
-            ctx.moveTo(x - 1, lastYRef.current);
-            ctx.lineTo(x, currentY);
+          const { isDottedAsystole } = propsRef.current;
+          
+          if (isDottedAsystole) {
+            const centerY = height / 2;
+            const dotPattern = 4; 
+            const dotSize = 2;
+            
+            if (x % dotPattern === 0) {
+              ctx.fillStyle = "#00ff00";
+              ctx.fillRect(x, centerY - dotSize/2, dotSize, dotSize);
+            }
+            lastYRef.current = centerY;
           } else {
-            ctx.moveTo(x, currentY);
-            ctx.lineTo(x, currentY);
+            const value = data[sampleIndex];
+            const currentY = getNormalizedY(value);
+            ctx.strokeStyle = "#00ff00";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            if (lastYRef.current !== null && x > 0 && x - 1 === ((currentX - 1) % width)) {
+              ctx.moveTo(x - 1, lastYRef.current);
+              ctx.lineTo(x, currentY);
+            } else {
+              ctx.moveTo(x, currentY);
+              ctx.lineTo(x, currentY);
+            }
+            ctx.stroke();
+            lastYRef.current = currentY;
           }
-          ctx.stroke();
-          lastYRef.current = currentY;
-        }
-
-        if (
-          showSynchroArrows &&
-          peakCandidateIndicesRef.current.has(sampleIndex)
-        ) {
-          drawArrow(x);
-        }
+          
+          if (showSynchroArrows && peakCandidateIndicesRef.current.has(sampleIndex)) {
+             
+                drawArrow(x);
+                
+          }
 
         if (pacingSpikeIndicesRef.current.has(sampleIndex)) {
           drawPacingSpike(x);
