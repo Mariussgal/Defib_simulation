@@ -1,0 +1,181 @@
+{
+    "id": "scenario_5",
+    "title": "Fibrillation Ventriculaire (in situ)",
+    "description": "Un patient de 62 ans en arrêt cardio-respiratoire. Le massage cardiaque externe est en cours. Utilisez le défibrillateur en mode manuel pour délivrer un choc de 150 Joules.",
+    "initialState": {
+        "rhythmType": "asystole",
+        "heartRate": 0
+    },
+    "steps": [
+        {
+            "step": 0,
+            "description": "Tournez la molette verte pour passer du mode ARRÊT au mode Moniteur.",
+            "validation": {
+                "any_of": [
+                    {
+                        "type": "stateChange",
+                        "property": "displayMode",
+                        "value": "Moniteur"
+                    },
+                    {
+                        "type": "stateChange",
+                        "property": "displayMode",
+                        "value": "Manuel"
+                    }
+                ]
+            },
+            "onComplete": [
+                {
+                    "action": "updateState",
+                    "payload": {
+                        "rhythmType": "fibrillationVentriculaire"
+                    },
+                    "delay": 5000
+                }
+            ]
+        },
+        {
+            "step": 1,
+            "description": "Tournez la molette verte pour sélectionner une énergie de 150J.",
+            "validation": {
+                "all_of": [
+                    {
+                        "type": "stateChange",
+                        "property": "displayMode",
+                        "value": "Manuel"
+                    },
+                    {
+                        "type": "stateChange",
+                        "property": "manualFrequency",
+                        "value": "150"
+                    }
+                ]
+            }
+        },
+        {
+            "step": 2,
+            "description": "Pressez le bouton jaune marqué 'Charge' pour charger le défibrillateur.",
+            "validation": {
+
+                "all_of": [
+                    {
+                        "type": "event",
+                        "eventName": "chargeStarted"
+                    }
+                ]
+                
+            }
+        },
+        {
+            "step": 3,
+            "description": "Pressez le bouton orange marqué 'Choc' pour délivrer l'énergie (1er choc).",
+            "validation": {
+                
+                "type": "stateChange",
+                "property": "shockCount",
+                "value": 1
+            },
+            "onComplete": [
+
+                {
+                    "action": "updateState",
+                    "payload": {
+                        "rhythmType": "asystole"
+                    }
+                },
+                {
+                    "action": "updateState",
+                    "payload": {
+                        "rhythmType": "fibrillationVentriculaire"
+                    }
+                }
+            ]
+        },
+        {
+            "step": 4,
+            "description": "Chargez à nouveau le défibrillateur à 150J.",
+            "validation": {
+                "all_of": [
+                    {
+                        "type": "stateChange",
+                        "property": "shockCount",
+                        "value": 1
+                    },
+                    {
+                        "type": "event",
+                        "eventName": "chargeStarted"
+                    }
+                ]
+            }
+        },
+        {
+            "step": 5,
+            "description": "Pressez le bouton orange marqué 'Choc' pour délivrer l'énergie (2ème choc).",
+            "validation": {
+                "type": "stateChange",
+                "property": "shockCount",
+                "value": 2
+            },
+            "onComplete": [
+                {
+                    "action": "updateState",
+                    "payload": {
+                        "rhythmType": "asystole"
+                    }
+                },
+                
+                {   
+                    "action": "updateState",
+                    "payload": {
+                        "rhythmType": "fibrillationVentriculaire"
+                    },
+                    "delay": 300
+                }
+            ]
+        },
+        {
+            "step": 6,
+            "description": "Chargez une dernière fois le défibrillateur à 150J.",
+            "validation": {
+                "all_of": [
+                    {
+                        "type": "stateChange",
+                        "property": "shockCount",
+                        "value": 2
+                    },
+                    {
+                        "type": "event",
+                        "eventName": "chargeStarted"
+                    }
+                ]
+            }
+        },
+        {
+            "step": 7,
+            "description": "Pressez le bouton orange marqué 'Choc' pour délivrer l'énergie (3ème choc).",
+            "validation": {
+                "type": "stateChange",
+                "property": "shockCount",
+                "value": 3
+            },
+            "onComplete": [
+               
+                {
+                    "action": "updateState",
+                    "payload": {
+                        "rhythmType": "asystole"
+                    },
+                    "delay": 300
+                },
+                {
+                    "action": "updateState",
+                    "payload": {
+                        "rhythmType": "sinus",
+                        "heartRate": 70
+                    },
+                    "delay": 2000
+                }
+            ]
+        }
+    ]
+}
