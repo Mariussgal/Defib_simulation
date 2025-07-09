@@ -1,10 +1,10 @@
 {
     "id": "scenario_1",
     "title": "Fibrillation Ventriculaire (Mode Manuel)",
-    "description": "Un patient de 62 ans en arrêt cardio-respiratoire. Le massage cardiaque externe est en cours. Utilisez le défibrillateur en mode manuel pour délivrer un choc de 150 Joules.",
+    "description": "Monsieur L. âgé de 80 ans, aux antécédents d'hypertension et d'embolie pulmonaire anticoagulée au long cours, est pris en charge pour des palpitations depuis 6h. L'ECG montre une ACFA à 160/min, le traitement médicamenteux est un échec et le patient présente une syncope associée à une hypotension artérielle.",
     "initialState": {
-        "rhythmType": "fibrillationVentriculaire",
-        "heartRate": 180
+        "rhythmType": "fibrillationAtriale",
+        "heartRate": 160
     },
     "steps": [
         {
@@ -27,23 +27,22 @@
         },
         {
             "step": 1,
-            "description": "Placez les électrodes et validez le positionnement sur le patient.",
+            "description": "Activez le mode synchronisé en appuyant sur le bouton Synchro (flèches apparaissent)",
             "validation": {
                 "type": "stateChange",
-                "property": "isElectrodeValidated",
+                "property": "isSynchroMode",
                 "value": true
             }
         },
-      
         {
             "step": 2,
-            "description": "Tournez la molette verte pour sélectionner une énergie de 150J.",
+            "description": "Sélectionnez une énergie appropriée (ex: 100-150 joules)",
             "validation": {
                 "all_of": [
                     {
                         "type": "stateChange",
-                        "property": "displayMode",
-                        "value": "Manuel"
+                        "property": "isSynchroMode",
+                        "value": true
                     },
                     {
                         "type": "stateChange",
@@ -65,7 +64,7 @@
                     },
                     {
                         "type": "event",
-                        "eventName": "chargeCompleted"
+                        "eventName": "chargeStarted"
                     }
                 ]
             }
@@ -74,8 +73,13 @@
             "step": 4,
             "description": "Pressez le bouton orange marqué 'Choc' pour délivrer l'énergie.",
             "validation": {
-                "type": "event",
-                "eventName": "shockDelivered"
+                "all_of": [
+                    {
+                        "type": "event",
+                        "eventName": "shockDelivered"
+                    }
+                    
+                ]
             },
             "onComplete": [
                 {
