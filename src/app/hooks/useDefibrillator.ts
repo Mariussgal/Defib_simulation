@@ -1,52 +1,67 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { NotificationService } from "../services/NotificationService";
 import AudioService from "../services/AudioService";
+import { RhythmType } from "../components/graphsdata/ECGRhythms";
 
 export type DisplayMode = "DAE" | "ARRET" | "Moniteur" | "Stimulateur" | "Manuel";
+export type PacerMode = "Fixe" | "Sentinelle";
 
 export interface DefibrillatorState {
   // Display
   displayMode: DisplayMode;
   manualFrequency: string;
-  
+  rhythmType: RhythmType;
+  heartRate: number;
+
+  // Pacer (Stimulator) values
+  pacerFrequency: number;
+  pacerIntensity: number;
+  pacerMode: PacerMode;
+  isPacing: boolean;
+
   // Charging and shock
   isCharging: boolean;
   chargeProgress: number;
   shockCount: number;
   isCharged: boolean;
-  
+
   // UI animations
   isChargeButtonPressed: boolean;
   isShockButtonPressed: boolean;
-  
+  isShockButtonBlinking: boolean;
+
   // Channel selection
   selectedChannel: number;
-  
+
   isSynchroMode: boolean;
 
+  // Event tracking for scenarios
   lastEvent: string | null;
 }
 
-export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?: number) => {
+export const useDefibrillator = () => {
   const [state, setState] = useState<DefibrillatorState>({
     displayMode: "ARRET",
     manualFrequency: "1-10",
+    rhythmType: 'sinus',
+    heartRate: 70,
+    pacerFrequency: 70,
+    pacerIntensity: 30,
+    pacerMode: "Fixe",
+    isPacing: false,
     isCharging: false,
     chargeProgress: 0,
     shockCount: 0,
     isCharged: false,
     isChargeButtonPressed: false,
     isShockButtonPressed: false,
+    isShockButtonBlinking: false,
     selectedChannel: 1,
     isSynchroMode: false,
-    lastEvent: null, 
-
+    lastEvent: null,
   });
 
-  // AudioService reference
   const audioServiceRef = useRef<AudioService | null>(null);
-  
-  // Réf pour l'intervalle de charge (pour pouvoir l'arrêter)
   const chargeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -55,171 +70,152 @@ export const useDefibrillator = (isInScenario?: () => boolean, currentHeartRate?
     }
   }, []);
 
-  const updateState = (updates: Partial<DefibrillatorState>) => {
+  // --- Core State Updater ---
+  const updateState = useCallback((updates: Partial<DefibrillatorState>) => {
     setState(prev => ({ ...prev, ...updates }));
-  };
+  }, []);
 
-  const incrementShockCount = () => {
-    updateState({
-      shockCount: state.shockCount + 1,
-      lastEvent: 'shockDelivered',
-    });
-  };
-  const clearLastEvent = () => {
+  // --- Pacer State Updaters ---
+  const setPacerFrequency = useCallback((newFrequency: number) => {
+    const freq = Math.max(30, Math.min(200, newFrequency));
+    updateState({ pacerFrequency: freq, lastEvent: `pacerFrequencySetTo_${freq}` });
+  }, [updateState]);
+
+  const setPacerIntensity = useCallback((newIntensity: number) => {
+    const intensity = Math.max(5, Math.min(200, newIntensity));
+    updateState({ pacerIntensity: intensity, lastEvent: `pacerIntensitySetTo_${intensity}` });
+  }, [updateState]);
+
+  const setPacerMode = useCallback((mode: PacerMode) => {
+    updateState({ pacerMode: mode, lastEvent: `pacerModeSetTo_${mode}` });
+  }, [updateState]);
+
+  const toggleIsPacing = useCallback(() => {
+    setState(currentState => ({
+      ...currentState,
+      isPacing: !currentState.isPacing,
+      lastEvent: `isPacingToggled_${!currentState.isPacing}`
+    }));
+  }, []);
+
+  // --- Event Management ---
+  const clearLastEvent = useCallback(() => {
     updateState({ lastEvent: null });
-  };
+  }, [updateState]);
 
-  // Actions
-  const setDisplayMode = (mode: DisplayMode) => {
-    updateState({ displayMode: mode });
-  };
+  // --- Other Actions ---
+  const setDisplayMode = useCallback((mode: DisplayMode) => {
+    const updates: Partial<DefibrillatorState> = {
+      displayMode: mode,
+      lastEvent: `displayModeSetTo_${mode}`,
+    };
 
-  const setManualFrequency = (frequency: string, onModeChangeCallback?: (mode: DisplayMode) => void) => {
-    updateState({ manualFrequency: frequency });
-    // Notify parent component to handle mode switching
+
+    if (mode === 'Stimulateur') {
+      updates.isSynchroMode = true;
+    }
+
+    updateState(updates);
+  }, [updateState]);
+
+  const setManualFrequency = useCallback((frequency: string, onModeChangeCallback?: (mode: DisplayMode) => void) => {
+    updateState({ manualFrequency: frequency, lastEvent: `manualFrequencySetTo_${frequency}` });
     if (state.displayMode !== "Manuel" && onModeChangeCallback) {
       onModeChangeCallback("Manuel");
     }
-  };
+  }, [state.displayMode, updateState]);
 
-  const startCharging = () => {
+  const toggleSynchroMode = useCallback(() => {
+    setState(currentState => ({
+      ...currentState,
+      isSynchroMode: !currentState.isSynchroMode,
+      lastEvent: `synchroMode_${!currentState.isSynchroMode ? 'activated' : 'deactivated'}`
+    }));
+  }, []);
+
+  const startCharging = useCallback(() => {
     if (state.isCharging || state.isCharged) return;
-
-    // Button animation
-    updateState({ isChargeButtonPressed: true });
+    updateState({ isChargeButtonPressed: true, lastEvent: "chargeStarted" });
     setTimeout(() => updateState({ isChargeButtonPressed: false }), 300);
-
-    updateState({
-      isCharging: true,
-      chargeProgress: 0,
-      isCharged: false,
-      lastEvent: "chargeStarted"
-    });
-
-    // charging sound manual mode
-    if (audioServiceRef.current) {
-      audioServiceRef.current.playChargingSequence();
-    }
-
-    // Charging animation (5 seconds)
+    updateState({ isCharging: true, chargeProgress: 0, isCharged: false });
+    audioServiceRef.current?.playChargingSequence();
     chargeIntervalRef.current = setInterval(() => {
       setState(prev => {
         const newProgress = prev.chargeProgress + 2;
         if (newProgress >= 100) {
-          if (chargeIntervalRef.current) {
-            clearInterval(chargeIntervalRef.current);
-            chargeIntervalRef.current = null;
-          }
-          return {
-            ...prev,
-            chargeProgress: 100,
-            isCharging: false,
-            isCharged: true,
-          };
+          if (chargeIntervalRef.current) clearInterval(chargeIntervalRef.current);
+          return { ...prev, chargeProgress: 100, isCharging: false, isCharged: true, lastEvent: 'chargeCompleted' };
         }
         return { ...prev, chargeProgress: newProgress };
       });
     }, 100);
-  };
+  }, [state.isCharging, state.isCharged, updateState]);
 
-  const deliverShock = () => {
-    if (!state.isCharged) return;
+  const deliverShock = useCallback(() => {
+    if (!state.isCharged) {
+      console.log("Shock not delivered: not charged.");
+      return;
+    }
 
-    // Animate the button press immediately for user feedback
+    const isCardioversion = state.isSynchroMode;
+    const delayInMs = isCardioversion ? 5000 : 0;
+
+    const executeShock = () => {
+      setState(s => {
+        if (!s.isCharged) return s;
+
+        if (audioServiceRef.current) {
+          audioServiceRef.current.stopAll();
+          audioServiceRef.current.playDAEChocDelivre();
+          setTimeout(() => audioServiceRef.current?.playCommencerRCP(), 2000);
+        }
+
+        return {
+          ...s,
+          shockCount: s.shockCount + 1,
+          isCharged: false,
+          chargeProgress: 0,
+          isShockButtonBlinking: false,
+          lastEvent: 'shockDelivered',
+        };
+      });
+    };
+
     updateState({ isShockButtonPressed: true });
     setTimeout(() => updateState({ isShockButtonPressed: false }), 500);
 
-    // This function contains the core shock logic
-    const executeShock = () => {
-      const newShockCount = state.shockCount + 1;
-      updateState({
-        shockCount: newShockCount,
-        isCharged: false,
-        chargeProgress: 0,
-        lastEvent: 'shockDelivered',
-      });
-
-      if (audioServiceRef.current) {
-        // Stop all ongoing sounds
-        audioServiceRef.current.stopAll();
-        audioServiceRef.current.playDAEChocDelivre();
-
-        setTimeout(() => {
-          audioServiceRef.current?.playCommencerRCP();
-        }, 2000);
-      }
-    };
-
-    // If a delay is provided, wait before executing the shock.
-    // Otherwise, execute it immediately.
-    if (state.isSynchroMode) {
-      setTimeout(executeShock, 5000);
+    if (isCardioversion) {
+      updateState({ isShockButtonBlinking: true });
+      setTimeout(executeShock, delayInMs);
     } else {
       executeShock();
     }
-  };
+  }, [state.isCharged, state.isSynchroMode, updateState]);
 
-  const setSelectedChannel = (channel: number) => {
-    updateState({ selectedChannel: channel });
-  };
 
-  const toggleSynchroMode = () => {
-    updateState({ isSynchroMode: !state.isSynchroMode });
-  };
-
-  const cancelCharge = () => {
-    // Seulement si la charge est complète (100%)
+  const cancelCharge = useCallback(() => {
     if (state.isCharged && state.chargeProgress === 100) {
-      // Stop all charging sounds
-      if (audioServiceRef.current) {
-        audioServiceRef.current.stopAll();
-      }
-      
-      updateState({
-        isCharged: false,
-        chargeProgress: 0,
-        isCharging: false,
-      });
-      return true; // Charge annulée avec succès
+      audioServiceRef.current?.stopAll();
+      updateState({ isCharged: false, chargeProgress: 0, isCharging: false, lastEvent: 'chargeCanceled' });
+      return true;
     }
-    return false; // Pas de charge à annuler
-  };
+    return false;
+  }, [state.isCharged, state.chargeProgress, updateState]);
 
-  const stopCharging = () => {
-    // Arrêter l'intervalle de charge si en cours
-    if (chargeIntervalRef.current) {
-      clearInterval(chargeIntervalRef.current);
-      chargeIntervalRef.current = null;
-    }
-    
-    // Arrêter tous les sons
-    if (audioServiceRef.current) {
-      audioServiceRef.current.stopAll();
-    }
-    
-    // Remettre tous les états de charge à zéro
-    updateState({
-      isCharging: false,
-      chargeProgress: 0,
-      isCharged: false,
-    });
-  };
 
   return {
-    // State
     ...state,
-    
-    // Actions
     setDisplayMode,
-    setManualFrequency,
     startCharging,
     deliverShock,
     cancelCharge,
-    stopCharging,
-    setSelectedChannel,
-    toggleSynchroMode, 
+    toggleSynchroMode,
     clearLastEvent,
     updateState,
-    incrementShockCount
+    setManualFrequency,
+    setPacerFrequency,
+    setPacerIntensity,
+    setPacerMode,
+    toggleIsPacing,
   };
 };

@@ -2,12 +2,21 @@ import React, { useState, useEffect, forwardRef, useImperativeHandle } from "rea
 import TimerDisplay from "../TimerDisplay";
 import ECGDisplay from "../graphsdata/ECGDisplay";
 import type { RhythmType } from "../graphsdata/ECGRhythms";
+import type { PacerMode } from "../../hooks/useDefibrillator";
 
 interface StimulateurDisplayProps {
   rhythmType?: RhythmType; 
   showSynchroArrows?: boolean;
   heartRate?: number;
   isScenario1Completed?: boolean;
+  pacerFrequency: number;
+  pacerIntensity: number;
+  onFrequencyChange: (value: number) => void;
+  onIntensityChange: (value: number) => void;
+  pacerMode: PacerMode;
+  isPacing: boolean;
+  onPacerModeChange: (mode: PacerMode) => void;
+  onTogglePacing: () => void;
 }
 
 export interface StimulateurDisplayRef {
@@ -27,19 +36,25 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
   rhythmType = 'sinus',
   showSynchroArrows = false,
   heartRate = 70,
-  isScenario1Completed = false
+  isScenario1Completed = false,
+  pacerFrequency,
+  pacerIntensity,
+  onFrequencyChange,
+  onIntensityChange,
+  pacerMode,
+  isPacing,
+  onPacerModeChange,
+  onTogglePacing,
 }, ref) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showStimulationModeMenu, setShowStimulationModeMenu] = useState(false);
-  const [selectedStimulationMode, setSelectedStimulationMode] = useState("Fixe");
-  const [isPacing, setPacing] = useState(false);
+  
 
    
   const [showReglagesStimulateur, setShowReglagesStimulateur] = useState(false);
   const [showReglagesStimulateurMenu, setShowReglagesStimulateurMenu] = useState(false);
   const [showIntensiteMenu, setShowIntensiteMenu] = useState(false);
-  const [frequenceValue, setFrequenceValue] = useState(70);
-  const [intensiteValue, setIntensiteValue] = useState(30);
+
 
   // États pour la navigation au joystick
   const [selectedMenuIndex, setSelectedMenuIndex] = useState(0);
@@ -54,7 +69,7 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
   const menuConfigs = {
     main: ['Mode stimulation', 'Volume', 'Courbes affichées', 'Mesures/Alarmes', 'Infos patient'],
     settings: ['Fréquence stimulation', 'Intensité stimulation', 'Fin'],
-    stimMode: ['Sentinelle', 'Fixe']
+    stimMode: ['Sentinelle', 'Fixe'] as PacerMode[]
   };
 
   const getCurrentMenuItems = () => {
@@ -108,9 +123,8 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
       setSelectedMenuIndex(0); // Reset selection
     },
 
-    triggerStimulation: () => {
-       setPacing(!isPacing)
-    },
+    triggerStimulation: onTogglePacing,
+
     navigateUp: () => {
       const menuItems = getCurrentMenuItems();
       if (menuItems.length > 0) {
@@ -145,8 +159,8 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
           () => setShowReglagesStimulateur(false)
         ],
         stimMode: [
-          () => { setSelectedStimulationMode("Sentinelle"); setShowStimulationModeMenu(false); },
-          () => { setSelectedStimulationMode("Fixe"); setShowStimulationModeMenu(false); }
+          () => { onPacerModeChange("Sentinelle"); setShowStimulationModeMenu(false); }, // UPDATED
+          () => { onPacerModeChange("Fixe"); setShowStimulationModeMenu(false); }        // UPDATED
         ]
       };
 
@@ -158,16 +172,16 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
     },
     incrementValue: () => {
       if (showReglagesStimulateurMenu) {
-        setFrequenceValue(prev => Math.min(prev + 5, 200));
+        onFrequencyChange(pacerFrequency + 5);
       } else if (showIntensiteMenu) {
-        setIntensiteValue(prev => Math.min(prev + 5, 200));
+        onIntensityChange(pacerIntensity + 5);
       }
     },
     decrementValue: () => {
       if (showReglagesStimulateurMenu) {
-        setFrequenceValue(prev => Math.max(prev - 5, 30));
+        onFrequencyChange(pacerFrequency - 5);
       } else if (showIntensiteMenu) {
-        setIntensiteValue(prev => Math.max(prev - 5, 5));
+        onIntensityChange(pacerIntensity - 5);
       }
     },
     isInValueEditMode: () => {
@@ -231,7 +245,7 @@ return (
             </div>
             <div className="flex flex-row items-center gap-x-2">
               <div className="text-green-400 text-4xl font-bold">
-                {rhythmType === 'fibrillationVentriculaire' ? '--' : rhythmType === 'asystole' ? '30' : isPacing ? frequenceValue :heartRate}
+                {rhythmType === 'fibrillationVentriculaire' ? '--' : rhythmType === 'asystole' ? '30' : isPacing ? pacerFrequency :heartRate}
               </div>
               <div className="text-green-400 text-xs">120</div>
             </div>
@@ -286,9 +300,12 @@ return (
           <ECGDisplay 
             width={800} 
             height={65} 
-            rhythmType={isPacing ? "electroEntrainement" : rhythmType} 
+            rhythmType={rhythmType} // Pass rhythmType directly
             showSynchroArrows={showSynchroArrows} 
-            heartRate={isPacing ? frequenceValue : heartRate}
+            heartRate={heartRate} // Pass heartRate directly
+            isPacing={isPacing} // Pass pacing status
+            pacerFrequency={pacerFrequency} // Pass pacer frequency
+            pacerIntensity={pacerIntensity} // Pass pacer intensity
           />
           <div className="w-full text-xs font-bold text-green-400 text-right ">
             <span>
@@ -315,8 +332,8 @@ return (
             </div>
 
             <div className="flex flex-row gap-2 ml-3 py-3">
-              <span className="font-bold text-lg font-mono">{frequenceValue} ppm</span>
-              <span className="font-bold text-lg font-mono">{intensiteValue} mA</span>
+              <span className="font-bold text-lg font-mono">{pacerFrequency} ppm</span>
+              <span className="font-bold text-lg font-mono">{pacerIntensity} mA</span>
             </div>
           </div>
         </div>
@@ -371,7 +388,7 @@ return (
                 </div>
                 
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-black text-2xl font-bold font-mono min-w-[60px] text-center">{frequenceValue}</span>
+                  <span className="text-black text-2xl font-bold font-mono min-w-[60px] text-center">{pacerFrequency}</span>
                   <span className="text-black text-sm">ppm</span>
                 </div>
                 
@@ -406,7 +423,7 @@ return (
                 </div>
                 
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-black text-2xl font-bold font-mono min-w-[60px] text-center">{intensiteValue}</span>
+                  <span className="text-black text-2xl font-bold font-mono min-w-[60px] text-center">{pacerIntensity}</span>
                   <span className="text-black text-sm">mA</span>
                 </div>
                 
