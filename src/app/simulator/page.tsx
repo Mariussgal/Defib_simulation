@@ -35,7 +35,7 @@ const SimulatorPage: React.FC = () => {
     ...defibrillator,
     ...electrodeValidation,
   };
-  const scenarioPlayer = useScenarioPlayer(fullSimulationState);
+  const scenarioPlayer = useScenarioPlayer(fullSimulationState as any);
 
   // --- UI and Interaction State ---
   const [daePhase, setDaePhase] = useState<string | null>(null);

@@ -3,7 +3,7 @@ import { NotificationService } from "../services/NotificationService";
 import AudioService from "../services/AudioService";
 import { RhythmType } from "../components/graphsdata/ECGRhythms";
 
-export type DisplayMode = "DAE" | "ARRET" | "Moniteur" | "Stimulateur" | "Manuel";
+export type DisplayMode = "DAE" | "ARRET" | "Moniteur" | "Stimulateur" | "Manuel" | null;
 export type PacerMode = "Fixe" | "Sentinelle";
 
 export interface DefibrillatorState {
