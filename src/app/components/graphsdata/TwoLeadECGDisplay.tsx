@@ -11,8 +11,10 @@ interface TwoLeadECGDisplayProps {
   durationSeconds?: number; // Reintroduced this prop
   chargeProgress: number;
   shockCount: number;
-  frequency: string;
+  energy: string;
   isDottedAsystole?: boolean;
+  showDefibrillatorInfo?: boolean;
+  showRhythmText?: boolean;
   showDefibrillatorInfo?: boolean;
   showRhythmText?: boolean;
 }
@@ -26,8 +28,10 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
   durationSeconds = 7, // Default to 5 seconds per trace
   chargeProgress,
   shockCount,
-  frequency,
+  energy,
   isDottedAsystole = false,
+  showDefibrillatorInfo = true,
+  showRhythmText = true,
   showDefibrillatorInfo = true,
   showRhythmText = true,
 }) => {
@@ -54,7 +58,26 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
     durationSeconds,
     isDottedAsystole,
   });
+  const lastYRefs = useRef<{ top: number | null; bottom: number | null }>({
+    top: null,
+    bottom: null,
+  });
+
+  const propsRef = useRef({
+    showSynchroArrows,
+    rhythmType,
+    heartRate,
+    durationSeconds,
+    isDottedAsystole,
+  });
   useEffect(() => {
+    propsRef.current = {
+      showSynchroArrows,
+      rhythmType,
+      heartRate,
+      durationSeconds,
+      isDottedAsystole,
+    };
     propsRef.current = {
       showSynchroArrows,
       rhythmType,
@@ -70,6 +93,10 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
     dataRef.current = newBuffer;
 
     const newPeakCandidates = new Set<number>();
+    const excludedRhythms: RhythmType[] = [
+      "fibrillationVentriculaire",
+      "asystole",
+    ];
     const excludedRhythms: RhythmType[] = [
       "fibrillationVentriculaire",
       "asystole",
@@ -101,8 +128,26 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
           newPeakCandidates.add(i);
           i += refractoryPeriodSamples;
         }
+        const value = newBuffer[i];
+        if (value < threshold) continue;
+
+        let isWindowMax = true;
+        for (let j = 1; j <= searchWindowRadius; j++) {
+          if (
+            value < newBuffer[(i - j + newBuffer.length) % newBuffer.length] ||
+            value < newBuffer[(i + j) % newBuffer.length]
+          ) {
+            isWindowMax = false;
+            break;
+          }
+        }
+        if (isWindowMax) {
+          newPeakCandidates.add(i);
+          i += refractoryPeriodSamples;
+        }
       }
     }
+
 
     peakCandidateIndicesRef.current = newPeakCandidates;
     normalizationRef.current = {
@@ -131,7 +176,10 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
 
     const topCtx = topCanvas.getContext("2d");
     const bottomCtx = bottomCanvas.getContext("2d");
+    const topCtx = topCanvas.getContext("2d");
+    const bottomCtx = bottomCanvas.getContext("2d");
     if (!topCtx || !bottomCtx) return;
+
 
     scanAccumulatorRef.current = 0;
     lastFrameTimeRef.current = 0;
@@ -147,6 +195,7 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
       const normalizedValue = range === 0 ? 0.5 : (value - min) / range;
       const canvasCenter = topMargin + traceHeight / 2;
       const { rhythmType } = propsRef.current;
+      if (rhythmType === "electroEntrainement" || rhythmType === "choc") {
       if (rhythmType === "electroEntrainement" || rhythmType === "choc") {
         // For pacing, use a fixed gain (pixels per mV) and center the trace.
         // This causes large spikes to go off-screen (clipping).
@@ -176,15 +225,26 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
       }
     };
 
-    const drawArrow = (ctx: CanvasRenderingContext2D, x: number) => {
-      ctx.fillStyle = "#FFFFFF";
+    const drawArrow = (ctx: CanvasRenderingContext2D,x: number) => {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+
+      // Draw the arrow shaft
       ctx.beginPath();
-      ctx.moveTo(x, 15);
-      ctx.lineTo(x - 5, 5);
-      ctx.lineTo(x + 5, 5);
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, 10);
+      ctx.stroke();
+
+      // Draw the arrowhead
+      ctx.beginPath();
+      ctx.moveTo(x, 15);      // Tip
+      ctx.lineTo(x - 4, 10);  // Top-left
+      ctx.lineTo(x + 4, 10);  // Top-right
       ctx.closePath();
       ctx.fill();
-    };
+  };
+
     const drawPacingSpike = (ctx: CanvasRenderingContext2D, x: number) => {
       ctx.strokeStyle = "white";
       ctx.lineWidth = 3;
@@ -335,7 +395,7 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
               <span>Chocs : {shockCount}</span>
             </div>
             <div className="text-right ml-auto">
-              <span>Energie sélectionnée : {frequency} joules</span>
+              <span>Energie sélectionnée : {energy} joules</span>
             </div>
           </div>
         )}

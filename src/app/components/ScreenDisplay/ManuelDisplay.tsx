@@ -16,9 +16,7 @@ import TwoLeadECGDisplay from "../graphsdata/TwoLeadECGDisplay"; // Import the n
 import TimerDisplay from "../TimerDisplay";
 import type { RhythmType } from "../graphsdata/ECGRhythms";
 import AudioService from "../../services/AudioService";
-import { useFVVitalSigns } from "../../hooks/useFVVitalSigns";
-import AudioService from "../../services/AudioService";
-import { useFVVitalSigns } from "../../hooks/useFVVitalSigns";
+import VitalsDisplay from "../VitalsDisplay";
 
 interface ManuelDisplayProps {
   energy: string;
@@ -77,7 +75,6 @@ const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(
     const timer1Ref = useRef<NodeJS.Timeout | null>(null);
     const timer2Ref = useRef<NodeJS.Timeout | null>(null);
     const delayTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const fvVitalSigns = useFVVitalSigns(rhythmType);
     const [isDelayedShockPending, setIsDelayedShockPending] = useState(false);
 
     const clearAllTimers = () => {
@@ -239,126 +236,16 @@ const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(
           </div>
 
           {/* Row 2 - Medical Parameters */}
-          <div className="text-left h-1/4 border-b border-gray-600 flex items-center gap-8 px-4 text-sm bg-black">
-            {/* FC */}
-            <div
-              className="flex flex-col cursor-pointer hover:bg-gray-800 p-2 rounded transition-colors"
-              onClick={() => {
-                const newValue = !showFCValue;
-
-                // Stop all beep sequences when FC is clicked
-                if (newValue && audioServiceRef.current) {
-                  audioServiceRef.current.stopFCBeepSequence();
-                  audioServiceRef.current.stopFVAlarmSequence();
-                }
-
-                if (onShowFCValueChange) {
-                  onShowFCValueChange(newValue);
-                }
-              }}
-            >
-              {showFCValue &&
-              (rhythmType === "fibrillationVentriculaire" ||
-                rhythmType === "fibrillationAtriale") ? (
-                // Composant clignotant pour les fibrillations (seulement si FC cliquée)
-
-                <div className="flex items-center justify-center -ml-9">
-                  <div
-                    className={`px-5 py-0.2 ${fibBlink ? "bg-red-600" : "bg-white"}`}
-                  >
-                    <span
-                      className={`text-xs font-bold ${fibBlink ? "text-white" : "text-red-600"}`}
-                    >
-                      {rhythmType === "fibrillationVentriculaire"
-                        ? "Fib.V"
-                        : "Fib.A"}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                // Affichage normal FC et bpm
-
-                <div className="flex flex-row items-center gap-x-2">
-                  <div className="text-gray-400 text-xs">FC</div>
-                  <div className="text-gray-400 text-xs">bpm</div>
-                </div>
-              )}
-              <div className="flex flex-row items-center gap-x-2">
-                <div className="text-green-400 text-4xl font-bold">
-                  {showFCValue
-                    ? rhythmType === "fibrillationVentriculaire"
-                      ? fvVitalSigns.heartRate
-                      : rhythmType === "asystole"
-                        ? "0"
-                        : rhythmType === "fibrillationAtriale"
-                          ? isScenario4
-                            ? "160"
-                            : fvVitalSigns.heartRate
-                          : heartRate
-                    : "--"}
-                </div>
-                <div className="text-green-400 text-xs">120</div>
-              </div>
-            </div>
-            {/* SpO2 et Pouls - Conteneur global avec hover */}
-            <div
-              className="flex flex-row items-center gap-4 cursor-pointer hover:bg-gray-800 p-2 rounded transition-colors"
-              onClick={() => {
-                if (onShowVitalSignsChange) {
-                  onShowVitalSignsChange(!showVitalSigns);
-                }
-              }}
-            >
-              {/* SpO2 */}
-              <div className="flex flex-col">
-                <div className="flex flex-row items-center gap-x-2">
-                  <div className="text-blue-400 text-2xl font-bold">SpO2</div>
-                  <div className="text-blue-400 text-xs">%</div>
-                </div>
-                <div className="flex flex-row  gap-x-2">
-                  <div className="text-blue-400 text-4xl font-bold -mt-2">
-                    {rhythmType === "fibrillationVentriculaire" ||
-                    rhythmType === "fibrillationAtriale"
-                      ? "--"
-                      : showVitalSigns
-                        ? "92"
-                        : "--"}
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="text-blue-400 text-xs">100</div>
-                    <div className="text-blue-400 text-xs">90</div>
-                  </div>
-                </div>
-              </div>
-              {/* Pouls */}
-              <div className="flex flex-row  gap-x-2">
-                <div className="flex flex-col ">
-                  <div className="text-blue-400 text-xs">Pouls</div>
-                  <div className="text-blue-400 text-4xl font-bold">
-                    {rhythmType === "fibrillationVentriculaire"
-                      ? "--"
-                      : rhythmType === "asystole"
-                        ? "0"
-                        : rhythmType === "fibrillationAtriale"
-                          ? "--"
-                          : showVitalSigns
-                            ? isScenario1Completed
-                              ? Math.max(
-                                  0,
-                                  heartRate + (heartRate >= 75 ? -3 : +2),
-                                ) // FC ± 5
-                              : heartRate
-                            : "--"}
-                  </div>
-                </div>
-                <div className="flex flex-col ">
-                  <div className="text-blue-400 text-xs mb-2">bpm</div>
-                  <div className="text-blue-400 text-xs">120</div>
-                  <div className="text-blue-400 text-xs">50</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <VitalsDisplay
+            rhythmType={rhythmType}
+            heartRate={heartRate}
+            showFCValue={showFCValue}
+            onShowFCValueChange={onShowFCValueChange || (() => { })}
+            showVitalSigns={showVitalSigns}
+            onShowVitalSignsChange={onShowVitalSignsChange || (() => { })}
+            isScenario4={isScenario4}
+            isScenario1Completed={isScenario1Completed}
+          />
 
           {/* All in one ECG display containing defib info */}
           <div className="flex-grow border-b border-gray-600 flex flex-col bg-black">
