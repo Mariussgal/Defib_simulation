@@ -12,14 +12,30 @@ import type { RhythmType } from "../graphsdata/ECGRhythms";
 import { useFVVitalSigns } from "../../hooks/useFVVitalSigns";
 import { usePlethAnimation } from "../../hooks/usePlethAnimation";
 import AudioService from "../../services/AudioService";
+import React, {
+  useState,
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useEffect,
+} from "react";
+import TwoLeadECGDisplay from "../graphsdata/TwoLeadECGDisplay";
+import PlethDisplay from "../graphsdata/PlethDisplay";
+import TimerDisplay from "../TimerDisplay";
+import type { RhythmType } from "../graphsdata/ECGRhythms";
+import { useFVVitalSigns } from "../../hooks/useFVVitalSigns";
+import { usePlethAnimation } from "../../hooks/usePlethAnimation";
+import AudioService from "../../services/AudioService";
 
 interface MonitorDisplayProps {
   rhythmType?: RhythmType;
   showSynchroArrows?: boolean;
   heartRate?: number;
+  showSynchroArrows?: boolean;
+  heartRate?: number;
   isScenario4?: boolean;
   isScenario1Completed?: boolean;
-  frequency?: string;
+  energy?: string;
   chargeProgress?: number;
   shockCount?: number;
   showFCValue?: boolean;
@@ -46,7 +62,7 @@ const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
       heartRate = 70,
       isScenario4 = false,
       isScenario1Completed = false,
-      frequency = "50",
+      energy = "50",
       chargeProgress = 0,
       shockCount = 0,
       showFCValue = false,
@@ -693,7 +709,7 @@ const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
               rhythmType={showFCValue ? rhythmType : "asystole"}
               showSynchroArrows={showSynchroArrows}
               heartRate={heartRate}
-              frequency={frequency}
+              energy={energy}
               chargeProgress={chargeProgress}
               shockCount={shockCount}
               isDottedAsystole={!showFCValue}

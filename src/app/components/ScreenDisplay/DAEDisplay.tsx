@@ -6,7 +6,7 @@ import type { RhythmType } from "../graphsdata/ECGRhythms";
 import { useFVVitalSigns } from "../../hooks/useFVVitalSigns";
 
 interface DAEDisplayProps {
-  frequency: string;
+  energy: string;
   chargeProgress: number;
   shockCount: number;
   isCharging: boolean; // État de charge en cours
