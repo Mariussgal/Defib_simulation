@@ -17,23 +17,26 @@ class AudioService {
   private alarmSound: HTMLAudioElement | null = null;
   private alarmOscillator: OscillatorNode | null = null;
   private audioContext: AudioContext | null = null;
+  private fcBeepTimer: NodeJS.Timeout | null = null;
+  private fcBeepOscillator: OscillatorNode | null = null;
+  private fvAlarmTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     if (typeof window === 'undefined') {
       return;
     }
-    
+
     this.synthesis = window.speechSynthesis;
     if (!this.synthesis) {
       return;
     }
-    
+
     const voices = this.synthesis.getVoices();
     const frenchVoice = voices.find(voice => voice.lang.includes('fr'));
 
     this.chargingSound = new Audio();
     this.chargingSound.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU';
-    
+
     this.alarmSound = new Audio();
     this.alarmSound.src = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU';
     this.alarmSound.loop = true;
@@ -66,7 +69,7 @@ class AudioService {
 
     utterance.onend = () => {
       this.currentUtterance = null;
-      
+
       if (options?.repeat && options?.repeatInterval) {
         this.repetitionTimer = setTimeout(() => {
           this.playMessage(text, options);
@@ -90,8 +93,8 @@ class AudioService {
 
   playDAEElectrodeReminder(): void {
     const message = "Appliquez les électrodes";
-    this.playMessage(message, { 
-      repeat: true, 
+    this.playMessage(message, {
+      repeat: true,
       repeatInterval: 10000 // 10 secondes
     });
   }
@@ -169,39 +172,39 @@ class AudioService {
 
   playChargingSequence(): void {
     this.stopAll();
-    
+
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = this.audioContext.createOscillator();
     const gainNode = this.audioContext.createGain();
-    
+
     oscillator.type = 'sine';
     oscillator.frequency.setValueAtTime(440, this.audioContext.currentTime);
     oscillator.frequency.linearRampToValueAtTime(880, this.audioContext.currentTime + 5);
-    
+
     gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
-    
+
     oscillator.connect(gainNode);
     gainNode.connect(this.audioContext.destination);
-    
+
     oscillator.start();
     oscillator.stop(this.audioContext.currentTime + 5);
-    
+
     // Après 5 secondes
     setTimeout(() => {
       // Générer une alarme aiguë
       this.alarmOscillator = this.audioContext!.createOscillator();
       const alarmGain = this.audioContext!.createGain();
-      
+
       this.alarmOscillator.type = 'square';
       this.alarmOscillator.frequency.setValueAtTime(1000, this.audioContext!.currentTime);
-      
+
       alarmGain.gain.setValueAtTime(0.05, this.audioContext!.currentTime);
-      
+
       this.alarmOscillator.connect(alarmGain);
       alarmGain.connect(this.audioContext!.destination);
-      
+
       this.alarmOscillator.start();
-      
+
       // Jouer les messages vocaux
       this.playDAEChoc();
       setTimeout(() => {
@@ -222,6 +225,8 @@ class AudioService {
       this.chargingSound.currentTime = 0;
     }
     this.stopAlarm();
+    this.stopFCBeepSequence();
+    this.stopFVAlarmSequence();
   }
 
   // Arrêter uniquement les répétitions
@@ -235,6 +240,167 @@ class AudioService {
   // Vérifier si un message est en cours
   isSpeaking(): boolean {
     return this.synthesis ? this.synthesis.speaking : false || this.currentUtterance !== null;
+  }
+
+  // bip quand FC pas cliquée 
+  playFCBeep(): void {
+    if (!this.settings.enabled) {
+      return;
+    }
+
+    try {
+      if (!this.audioContext || this.audioContext.state === 'closed') {
+        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+
+      // Réactive l'AudioContext si suspendu (iOS)
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume().then(() => {
+          this.playFCBeepSound();
+        }).catch(error => {
+          console.error('Error resuming audio context:', error);
+        });
+      } else {
+        this.playFCBeepSound();
+      }
+    } catch (error) {
+      console.error('Error playing FC beep:', error);
+    }
+  }
+
+  private playFCBeepSound(): void {
+    if (!this.audioContext) return;
+
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(1000, this.audioContext.currentTime);
+
+    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.8 * this.settings.volume, this.audioContext.currentTime + 0.005);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.08);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+
+    oscillator.start();
+    oscillator.stop(this.audioContext.currentTime + 0.1);
+  }
+
+  // Démare les bips répétitifs pour la FC
+  startFCBeepSequence(): void {
+    // Arrêter toute séquence existante
+    this.stopFCBeepSequence();
+
+    // bips toutes les 2 secondes
+    this.fcBeepTimer = setInterval(() => {
+      this.playFCBeep();
+    }, 2000);
+  }
+
+  // Arrête bips répétitifs pour la FC
+  stopFCBeepSequence(): void {
+    if (this.fcBeepTimer) {
+      clearInterval(this.fcBeepTimer);
+      this.fcBeepTimer = null;
+    }
+
+    if (this.fcBeepOscillator) {
+      this.fcBeepOscillator.stop();
+      this.fcBeepOscillator = null;
+    }
+  }
+
+  // Bip d'alarme pour fibrillation ventriculaire 
+  playFVAlarmBeep(): void {
+    if (!this.settings.enabled) {
+      return;
+    }
+
+    try {
+      if (!this.audioContext || this.audioContext.state === 'closed') {
+        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume().then(() => {
+          this.playFVAlarmSound();
+        }).catch(error => {
+          console.error('Error resuming audio context for FV alarm:', error);
+        });
+      } else {
+        this.playFVAlarmSound();
+      }
+    } catch (error) {
+      console.error('Error playing FV alarm beep:', error);
+    }
+  }
+
+  private playFVAlarmSound(): void {
+    if (!this.audioContext) return;
+
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(1600, this.audioContext.currentTime);
+
+    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(1.5 * this.settings.volume, this.audioContext.currentTime + 0.005);
+    gainNode.gain.exponentialRampToValueAtTime(0.1, this.audioContext.currentTime + 0.3); // Maintient le son plus longtemps
+    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.5); // Decay plus long = bip long
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+
+    oscillator.start();
+    oscillator.stop(this.audioContext.currentTime + 0.5); // Bip 500ms 
+  }
+
+  startFVAlarmSequence(): void {
+    this.stopFVAlarmSequence();
+
+    this.fvAlarmTimer = setInterval(() => {
+      this.playFVAlarmBeep();
+    }, 1000);
+  }
+
+  stopFVAlarmSequence(): void {
+    if (this.fvAlarmTimer) {
+      clearInterval(this.fvAlarmTimer);
+      this.fvAlarmTimer = null;
+    }
+  }
+
+  //  son de clic bouton rotatif)
+  playClickSound(): void {
+    if (!this.settings.enabled) {
+      return;
+    }
+
+    //  Web Audio API
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(80, audioContext.currentTime + 0.08);
+
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.15 * this.settings.volume, audioContext.currentTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.08);
+    } catch (error) {
+      console.error('Error playing click sound:', error);
+    }
   }
 }
 

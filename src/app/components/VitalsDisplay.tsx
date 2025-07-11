@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { RhythmType } from './graphsdata/ECGRhythms';
-import { useFVVitalSigns } from '../hooks/useFVVitalSigns';
+import { useAlarms } from '../hooks/useAlarms';
 
 interface VitalsDisplayProps {
     rhythmType: RhythmType;
@@ -24,7 +24,7 @@ const VitalsDisplay: React.FC<VitalsDisplayProps> = ({
     isScenario1Completed = false,
 }) => {
     const [fibBlink, setFibBlink] = useState(false);
-    const fvVitalSigns = useFVVitalSigns(rhythmType);
+    const Alarms = useAlarms(rhythmType, showFCValue);
     const [showPNIValues, setShowPNIValues] = useState(false);
     const [selectedFrequencePNI, setSelectedFrequencePNI] = useState("Manuel");
 
@@ -61,7 +61,7 @@ const VitalsDisplay: React.FC<VitalsDisplayProps> = ({
                     <div className="text-green-400 text-4xl font-bold w-[65px] text-center">
                         {showFCValue
                             ? rhythmType === 'fibrillationVentriculaire'
-                                ? fvVitalSigns.heartRate
+                                ? Alarms.heartRate
                                 : rhythmType === 'asystole'
                                     ? '0'
                                     : heartRate
