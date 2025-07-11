@@ -30,7 +30,7 @@
                     "payload": {
                         "rhythmType": "fibrillationVentriculaire"
                     },
-                    "delay": 5000
+                    "delay": 500
                 }
             ]
         },
@@ -46,7 +46,7 @@
                     },
                     {
                         "type": "stateChange",
-                        "property": "manualFrequency",
+                        "property": "manualEnergy",
                         "value": "150"
                     }
                 ]
@@ -87,7 +87,8 @@
                     "action": "updateState",
                     "payload": {
                         "rhythmType": "fibrillationVentriculaire"
-                    }
+                    },
+                    "delay": 2000
                 }
             ]
         },
@@ -129,13 +130,13 @@
                     "payload": {
                         "rhythmType": "fibrillationVentriculaire"
                     },
-                    "delay": 300
+                    "delay": 2000
                 }
             ]
         },
         {
             "step": 6,
-            "description": "Chargez une dernière fois le défibrillateur à 150J.",
+            "description": "Chargez à nouveau le défibrillateur à 150J.",
             "validation": {
                 "all_of": [
                     {
@@ -152,11 +153,52 @@
         },
         {
             "step": 7,
-            "description": "Pressez le bouton orange marqué 'Choc' pour délivrer l'énergie (3ème choc).",
+            "description": "Pressez le bouton orange marqué 'Choc' pour délivrer l'énergie (2ème choc).",
             "validation": {
                 "type": "stateChange",
                 "property": "shockCount",
                 "value": 3
+            },
+            "onComplete": [
+                {
+                    "action": "updateState",
+                    "payload": {
+                        "rhythmType": "asystole"
+                    }
+                },
+                {
+                    "action": "updateState",
+                    "payload": {
+                        "rhythmType": "fibrillationVentriculaire"
+                    },
+                    "delay": 2000
+                }
+            ]
+        },
+        {
+            "step": 8,
+            "description": "Chargez une dernière fois le défibrillateur à 150J.",
+            "validation": {
+                "all_of": [
+                    {
+                        "type": "stateChange",
+                        "property": "shockCount",
+                        "value": 3
+                    },
+                    {
+                        "type": "event",
+                        "eventName": "chargeStarted"
+                    }
+                ]
+            }
+        },
+        {
+            "step": 9,
+            "description": "Pressez le bouton orange marqué 'Choc' pour délivrer l'énergie (3ème choc).",
+            "validation": {
+                "type": "stateChange",
+                "property": "shockCount",
+                "value": 4
             },
             "onComplete": [
                

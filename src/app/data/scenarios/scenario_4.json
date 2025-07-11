@@ -46,7 +46,7 @@
                     },
                     {
                         "type": "stateChange",
-                        "property": "manualFrequency",
+                        "property": "manualEnergy",
                         "value": "150"
                     }
                 ]
@@ -59,7 +59,7 @@
                 "all_of": [
                     {
                         "type": "stateChange",
-                        "property": "manualFrequency",
+                        "property": "manualEnergy",
                         "value": "150"
                     },
                     {
