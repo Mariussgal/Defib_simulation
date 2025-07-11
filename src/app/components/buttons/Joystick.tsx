@@ -18,6 +18,10 @@ const Joystick: React.FC<JoystickProps> = ({
   const [isPressed, setIsPressed] = useState(false);
   const joystickRef = useRef<HTMLDivElement>(null);
 
+  // Refs to store initial angles for relative rotation calculation
+  const initialJoystickAngleRef = useRef(0);
+  const initialMouseAngleRef = useRef(0);
+
   // Gets cross-platform event coordinates for both mouse and touch events.
   const getEventCoordinates = (e: MouseEvent | TouchEvent) => {
     if ("touches" in e) {
@@ -43,12 +47,22 @@ const Joystick: React.FC<JoystickProps> = ({
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation(); // Prevent triggering other events
     setIsDragging(true);
+    // Store the initial angles when drag starts
+    initialJoystickAngleRef.current = angle;
+    initialMouseAngleRef.current = calculateAngle(e as any);
   };
 
   // Handles the movement during a drag interaction.
   const handleMove = (e: MouseEvent | TouchEvent) => {
     if (!isDragging) return;
-    const newAngle = calculateAngle(e);
+    const currentMouseAngle = calculateAngle(e);
+
+    // Calculate the change in angle from the start of the drag
+    let angleDelta = currentMouseAngle - initialMouseAngleRef.current;
+
+    // Calculate the new joystick angle based on the initial angle plus the delta
+    const newAngle = initialJoystickAngleRef.current + angleDelta;
+
     setAngle(newAngle);
     onRotationChange?.(newAngle);
   };
@@ -108,6 +122,7 @@ const Joystick: React.FC<JoystickProps> = ({
           className="w-full h-full rounded-full flex items-center justify-center"
           style={{
             transform: `rotate(${angle}deg)`,
+            transition: isDragging ? 'none' : 'transform 0.2s ease-out'
           }}
         >
           {/* Central clickable button */}

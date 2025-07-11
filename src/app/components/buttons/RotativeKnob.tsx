@@ -4,30 +4,28 @@ import AudioService from '../../services/AudioService';
 interface RotativeKnobProps {
   onValueChange?: (value: number) => void;
   initialValue?: number;
-  rotationSpeed?: number; // New prop to control rotation speed
 }
 
-const RotativeKnob: React.FC<RotativeKnobProps> = ({ 
-  onValueChange, 
-  initialValue = 0, 
-  rotationSpeed = 0.5 // Default speed factor (0.5 = half speed)
+const RotativeKnob: React.FC<RotativeKnobProps> = ({
+  onValueChange,
+  initialValue = 0,
 }) => {
   const [rotaryValue, setRotaryValue] = useState(initialValue);
   const [isDragging, setIsDragging] = useState(false);
-  const [lastMouseAngle, setLastMouseAngle] = useState<number | null>(null);
-  const [accumulatedRotation, setAccumulatedRotation] = useState(0);
-  const [hasRotated, setHasRotated] = useState(false); // Track if rotation occurred during this drag
   const rotaryRef = useRef<HTMLDivElement>(null);
-  const audioService = useRef(new AudioService());
+
+  // Refs to store initial angles for relative rotation calculation
+  const initialKnobAngleRef = useRef(0);
+  const initialMouseAngleRef = useRef(0);
 
   type PredefinedAngle = {
     value: string;
     angle: number;
   };
 
-  // Angles prédéfinis pour les crans
+  // Predefined angles for the snap points
   const predefinedAngles: PredefinedAngle[] = [
-    { value : "DAE" , angle:-35},
+    { value: "DAE", angle: -35 },
     { value: "ARRET", angle: 0 },
     { value: "Moniteur", angle: 35 },
     { value: "1-10", angle: 60 },
@@ -44,203 +42,147 @@ const RotativeKnob: React.FC<RotativeKnobProps> = ({
     { value: "Stimu\nlateur", angle: 240 },
   ];
 
-  // Fonction pour trouver l'angle le plus proche
+  // Finds the closest predefined snap angle to a given target angle.
   const findClosestAngle = (targetAngle: number) => {
-    // Normaliser l'angle cible entre 0 et 360
-    const normalizedTarget = ((targetAngle % 360) + 360) % 360;
-    
     let minDifference = 360;
     let closestAngle = predefinedAngles[0].angle;
-    
+
     predefinedAngles.forEach(({ angle }) => {
-      // Calculer la différence dans les deux sens du cercle
-      const diff1 = Math.abs(normalizedTarget - angle);
-      const diff2 = 360 - diff1;
-      const difference = Math.min(diff1, diff2);
-      
+      // Normalize angles to be within a consistent range for comparison
+      const normalizedTarget = (targetAngle % 360 + 360) % 360;
+      const normalizedAngle = (angle % 360 + 360) % 360;
+
+      const diff = Math.abs(normalizedTarget - normalizedAngle);
+      const difference = Math.min(diff, 360 - diff);
+
       if (difference < minDifference) {
         minDifference = difference;
         closestAngle = angle;
       }
     });
-    
+
     return closestAngle;
   };
 
-  // Fonction qui extrait les coordonnées de la souris ou tactile
+  // Gets cross-platform event coordinates for both mouse and touch events.
   const getEventCoordinates = (e: MouseEvent | TouchEvent) => {
     if ("touches" in e) {
-      // Événement tactile
       const touch = e.touches[0] || e.changedTouches[0];
       return { clientX: touch.clientX, clientY: touch.clientY };
-    } else {
-      // Événement souris
-      return { clientX: e.clientX, clientY: e.clientY };
     }
+    return { clientX: e.clientX, clientY: e.clientY };
   };
 
-  // === GESTION DU BOUTON ROTATIF ===
-  const handleRotaryMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setAccumulatedRotation(0);
-    setLastMouseAngle(null);
-    setHasRotated(false); // Reset rotation flag at start of interaction
-  };
-
-  const handleRotaryTouchStart = (e: React.TouchEvent) => {
-    setIsDragging(true);
-    setAccumulatedRotation(0);
-    setLastMouseAngle(null);
-    setHasRotated(false); // Reset rotation flag at start of interaction
-  };
-
-  const handleRotaryMove = (e: MouseEvent | TouchEvent) => {
-    if (!isDragging || !rotaryRef.current) return;
-
+  // Calculates the angle of the cursor relative to the center of the knob.
+  const calculateAngle = (e: MouseEvent | TouchEvent) => {
+    if (!rotaryRef.current) return 0;
     const { clientX, clientY } = getEventCoordinates(e);
     const rect = rotaryRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-
-    const angle = Math.atan2(clientY - centerY, clientX - centerX);
-    const degrees = (angle * 180) / Math.PI + 90;
-
-    // Normaliser l'angle entre 0 et 360
-    const normalizedDegrees = ((degrees % 360) + 360) % 360;
-
-    if (lastMouseAngle !== null) {
-      // Calculer la différence d'angle depuis la dernière position
-      let angleDiff = normalizedDegrees - lastMouseAngle;
-      
-      // Gérer le passage par 0/360 degrés
-      if (angleDiff > 180) {
-        angleDiff -= 360;
-      } else if (angleDiff < -180) {
-        angleDiff += 360;
-      }
-
-      // Appliquer le facteur de vitesse pour ralentir la rotation
-      const scaledDiff = angleDiff * rotationSpeed;
-      const newAccumulated = accumulatedRotation + scaledDiff;
-      
-      // Seuil pour changer de cran (nécessite plus de mouvement)
-      const threshold = 15; // Augmenter cette valeur pour nécessiter plus de mouvement
-      
-      if (Math.abs(newAccumulated) > threshold) {
-        const direction = newAccumulated > 0 ? 1 : -1;
-        const currentIndex = predefinedAngles.findIndex(item => item.angle === rotaryValue);
-        const nextIndex = currentIndex + direction;
-        
-        if (nextIndex >= 0 && nextIndex < predefinedAngles.length) {
-          const newAngle = predefinedAngles[nextIndex].angle;
-          setRotaryValue(newAngle);
-          onValueChange?.(newAngle);
-          setAccumulatedRotation(0); // Réinitialiser l'accumulation
-          setHasRotated(true); 
-        } else {
-          setAccumulatedRotation(newAccumulated); // Garder l'accumulation si on ne peut pas bouger
-        }
-      } else {
-        setAccumulatedRotation(newAccumulated);
-      }
-    }
-
-    setLastMouseAngle(normalizedDegrees);
+    const angleRad = Math.atan2(clientY - centerY, clientX - centerX);
+    // Add 90 degrees to align the 0-degree mark to the top
+    return (angleRad * 180) / Math.PI + 90;
   };
 
-  const handleRotaryEnd = () => {
-    if (hasRotated) {
-      audioService.current.playClickSound();
+  // Handles the start of a drag interaction.
+  const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    // Store the initial angles when drag starts
+    initialKnobAngleRef.current = rotaryValue;
+    initialMouseAngleRef.current = calculateAngle(e as any);
+  };
+
+  // Handles the movement during a drag interaction.
+  const handleInteractionMove = (e: MouseEvent | TouchEvent) => {
+    if (!isDragging) return;
+
+    const currentMouseAngle = calculateAngle(e);
+    let angleDelta = currentMouseAngle - initialMouseAngleRef.current;
+
+    // Handle the angle wrapping around 360 degrees
+    if (angleDelta > 180) angleDelta -= 360;
+    if (angleDelta < -180) angleDelta += 360;
+
+    const newAngle = initialKnobAngleRef.current + angleDelta;
+    const closestSnapAngle = findClosestAngle(newAngle);
+
+    if (closestSnapAngle !== rotaryValue) {
+      setRotaryValue(closestSnapAngle);
+      onValueChange?.(closestSnapAngle);
     }
-    
+  };
+
+  // Handles the end of an interaction.
+  const handleInteractionEnd = () => {
     setIsDragging(false);
-    setLastMouseAngle(null);
-    setAccumulatedRotation(0);
-    setHasRotated(false); // Reset for next interaction
   };
 
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  useEffect(() => {
-    if (isInitialized) {
-      onValueChange?.(rotaryValue);
-    } else {
-      setIsInitialized(true);
-    }
-  }, [rotaryValue]);
-
+  // Effect to add and remove global event listeners for dragging.
   useEffect(() => {
     if (isDragging) {
-      const handleMouseMove = (e: MouseEvent) => handleRotaryMove(e);
+      const handleMouseMove = (e: MouseEvent) => handleInteractionMove(e);
       const handleTouchMove = (e: TouchEvent) => {
-        e.preventDefault(); // Empêche le scroll sur mobile
-        handleRotaryMove(e);
+        e.preventDefault();
+        handleInteractionMove(e);
       };
 
       document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleRotaryEnd);
-      document.addEventListener("touchmove", handleTouchMove, {
-        passive: false,
-      });
-      document.addEventListener("touchend", handleRotaryEnd);
+      document.addEventListener("mouseup", handleInteractionEnd);
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleInteractionEnd);
 
       return () => {
         document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleRotaryEnd);
+        document.removeEventListener("mouseup", handleInteractionEnd);
         document.removeEventListener("touchmove", handleTouchMove);
-        document.removeEventListener("touchend", handleRotaryEnd);
+        document.removeEventListener("touchend", handleInteractionEnd);
       };
     }
-  }, [isDragging, lastMouseAngle, accumulatedRotation, rotaryValue, rotationSpeed]);
-
-  const rotationAngle = rotaryValue;
+  }, [isDragging, rotaryValue]);
 
   return (
     <div className="relative mt-6 -ml-5">
       <div className="absolute inset-0 w-56 h-56">
         {predefinedAngles
           .map((item) => (
-          <div
-            key={item.value}
-            className="absolute text-white font-bold"
-            style={{
-              transform: `rotate(${item.angle - 90}deg) translate(86px) rotate(${-(item.angle - 90)}deg)`,
-              transformOrigin: "50% 50%",
-              left: "50%",
-              top: "50%",
-              marginLeft: item.value === "Moniteur" ? "-20px" : "-10px",
-              marginTop: "-10px",
-              fontSize: "10px",
-              whiteSpace: "pre-line",
-              textAlign: "center",
-            }}
-          >
-            {item.value}
-          </div>
-        ))}
+            <div
+              key={item.value}
+              className="absolute text-white font-bold"
+              style={{
+                transform: `rotate(${item.angle - 90}deg) translate(86px) rotate(${-(item.angle - 90)}deg)`,
+                transformOrigin: "50% 50%",
+                left: "50%",
+                top: "50%",
+                marginLeft: item.value === "Moniteur" ? "-20px" : "-10px",
+                marginTop: "-10px",
+                fontSize: "10px",
+                whiteSpace: "pre-line",
+                textAlign: "center",
+              }}
+            >
+              {item.value}
+            </div>
+          ))}
       </div>
 
-      {/* Zone verte d'arrière-plan */}
       <div className="absolute inset-1 bg-green-500 opacity-20 rounded-full"></div>
 
-      {/* Bouton rotatif principal */}
       <div
         ref={rotaryRef}
         className="relative w-56 h-56 rounded-full border-gray-600 cursor-grab active:cursor-grabbing touch-manipulation select-none"
-        onMouseDown={handleRotaryMouseDown}
-        onTouchStart={handleRotaryTouchStart}
+        onMouseDown={handleInteractionStart}
+        onTouchStart={handleInteractionStart}
         style={{
-          transform: `rotate(${rotationAngle}deg)`,
+          transform: `rotate(${rotaryValue}deg)`,
           transition: isDragging ? "none" : "transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)",
           touchAction: "none",
         }}
       >
-        {/* Centre du bouton avec effet 3D */}
         <div className="absolute inset-12 bg-gradient-to-br from-green-200 to-green-400 rounded-full shadow-inner border border-gray-300 pointer-events-none">
           <div className="absolute inset-4 bg-gradient-to-br from-green-100 to-green-300 rounded-full pointer-events-none">
-            {/* Indicateur principal - barre verticale au centre */}
             <div className="absolute top-1/2 left-1/2 w-5 h-28 bg-green-800 rounded-full transform -translate-x-1/2 -translate-y-1/2 shadow-md pointer-events-none">
-              {/* Petit indicateur oval blanc à l'extrémité de la barre */}
               <div className="absolute top-1 left-1/2 w-2 h-4 bg-white rounded-full transform -translate-x-1/2 pointer-events-none"></div>
             </div>
           </div>
