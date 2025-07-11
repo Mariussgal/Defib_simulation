@@ -1,11 +1,14 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from "react";
 import TimerDisplay from "../TimerDisplay";
 import ECGDisplay from "../graphsdata/ECGDisplay";
 import type { RhythmType } from "../graphsdata/ECGRhythms";
 import type { PacerMode } from "../../hooks/useDefibrillator";
+import AudioService from "../../services/AudioService";
+import { useFVVitalSigns } from "../../hooks/useFVVitalSigns";
+
 
 interface StimulateurDisplayProps {
-  rhythmType?: RhythmType; 
+  rhythmType?: RhythmType;
   showSynchroArrows?: boolean;
   heartRate?: number;
   isScenario1Completed?: boolean;
@@ -29,10 +32,10 @@ export interface StimulateurDisplayRef {
   incrementValue: () => void;
   decrementValue: () => void;
   isInValueEditMode: () => boolean;
-  
+
 }
 
-const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayProps>(({ 
+const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayProps>(({
   rhythmType = 'sinus',
   showSynchroArrows = false,
   heartRate = 70,
@@ -46,11 +49,14 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
   onPacerModeChange,
   onTogglePacing,
 }, ref) => {
+
+  const audioServiceRef = useRef<AudioService | null>(null);
+
   const [showMenu, setShowMenu] = useState(false);
   const [showStimulationModeMenu, setShowStimulationModeMenu] = useState(false);
-  
 
-   
+
+
   const [showReglagesStimulateur, setShowReglagesStimulateur] = useState(false);
   const [showReglagesStimulateurMenu, setShowReglagesStimulateurMenu] = useState(false);
   const [showIntensiteMenu, setShowIntensiteMenu] = useState(false);
@@ -59,10 +65,38 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
   // États pour la navigation au joystick
   const [selectedMenuIndex, setSelectedMenuIndex] = useState(0);
 
+  // Initialize AudioService
+  useEffect(() => {
+    if (typeof window !== "undefined" && !audioServiceRef.current) {
+      audioServiceRef.current = new AudioService();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (audioServiceRef.current) {
+      if (
+        rhythmType === "fibrillationVentriculaire" ||
+        rhythmType === "fibrillationAtriale" ||
+        rhythmType === "tachycardieVentriculaire" ||
+        rhythmType === "asystole"
+      ) {
+        audioServiceRef.current.startFVAlarmSequence();
+      } else {
+        audioServiceRef.current.stopFVAlarmSequence();
+      }
+    }
+
+    return () => {
+      if (audioServiceRef.current) {
+        audioServiceRef.current.stopFVAlarmSequence();
+      }
+    };
+  }, [rhythmType]);
+
   //  vérifie si un menu ouvert
   const isAnyMenuOpen = () => {
-    return showMenu || showStimulationModeMenu || showReglagesStimulateur || 
-           showReglagesStimulateurMenu || showIntensiteMenu;
+    return showMenu || showStimulationModeMenu || showReglagesStimulateur ||
+      showReglagesStimulateurMenu || showIntensiteMenu;
   };
 
   // Configuration des menus
@@ -78,30 +112,38 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
     if (showStimulationModeMenu) return menuConfigs.stimMode;
     return [];
   };
-  
+
   // Fonction pour rendre un menu générique
-  const renderMenu = (title: string, items: string[], onClose: () => void) => (
-    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+  const renderMenu = (
+    title: string,
+    items: string[],
+    onClose: () => void,
+  ) => (
+    <div className="absolute bottom-6 -right-1 transform translate-x-0 translate-y-0 z-50">
       <div className="bg-gray-300 border-2 border-black w-64 shadow-lg">
         <div className="bg-gray-400 px-4 py-2 border-b border-black">
           <h3 className="text-black font-bold text-sm">{title}</h3>
         </div>
         <div className="flex flex-col">
           {items.map((item, index) => (
-            <div 
+            <div
               key={index}
-              className={`px-4 py-2 ${index < items.length - 1 ? 'border-b border-gray-500' : ''} ${
-                selectedMenuIndex === index ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
+              className={`px-4 py-2 ${index < items.length - 1 ? "border-b border-gray-500" : ""} ${selectedMenuIndex === index ? "bg-blue-500" : "bg-gray-300"
+                }`}
             >
-              <span className={`text-sm ${selectedMenuIndex === index ? 'text-white' : 'text-black'}`}>
+              <span
+                className={`text-sm ${selectedMenuIndex === index ? "text-white" : "text-black"}`}
+              >
                 {item}
               </span>
             </div>
           ))}
         </div>
       </div>
-      <div className="fixed inset-0 bg-black bg-opacity-0 -z-10" onClick={onClose}></div>
+      <div
+        className="fixed inset-0 bg-black bg-opacity-0 -z-10"
+        onClick={onClose}
+      ></div>
     </div>
   );
 
@@ -164,10 +206,10 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
         ]
       };
 
-      const currentActions = showMenu ? actions.main : 
-                           showReglagesStimulateur ? actions.settings : 
-                           showStimulationModeMenu ? actions.stimMode : [];
-      
+      const currentActions = showMenu ? actions.main :
+        showReglagesStimulateur ? actions.settings :
+          showStimulationModeMenu ? actions.stimMode : [];
+
       currentActions[selectedMenuIndex]?.();
     },
     incrementValue: () => {
@@ -189,7 +231,7 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
     }
   }));
 
-return (
+  return (
     <div className="absolute inset-3 bg-gray-900 rounded-lg">
       <div className="h-full flex flex-col">
         {/* Rangée 1 - En-tête */}
@@ -245,7 +287,7 @@ return (
             </div>
             <div className="flex flex-row items-center gap-x-2">
               <div className="text-green-400 text-4xl font-bold">
-                {rhythmType === 'fibrillationVentriculaire' ? '--' : rhythmType === 'asystole' ? '30' : isPacing ? pacerFrequency :heartRate}
+                {rhythmType === 'fibrillationVentriculaire' ? '--' : rhythmType === 'asystole' ? '30' : isPacing ? pacerFrequency : heartRate}
               </div>
               <div className="text-green-400 text-xs">120</div>
             </div>
@@ -275,11 +317,11 @@ return (
             <div className="flex flex-col ">
               <div className="text-blue-400 text-xs">Pouls</div>
               <div className="text-blue-400 text-4xl font-bold">
-                {rhythmType === 'fibrillationVentriculaire' ? '--' 
-                  : rhythmType === 'asystole' ? '30' 
-                  : isScenario1Completed 
-                    ? Math.max(0, heartRate + (heartRate >= 75 ? -3 : +2)) // FC ± 5
-                    : heartRate}
+                {rhythmType === 'fibrillationVentriculaire' ? '--'
+                  : rhythmType === 'asystole' ? '30'
+                    : isScenario1Completed
+                      ? Math.max(0, heartRate + (heartRate >= 75 ? -3 : +2)) // FC ± 5
+                      : heartRate}
               </div>
             </div>
             <div className="flex flex-col ">
@@ -297,11 +339,11 @@ return (
 
         {/* Row 3*/}
         <div className="h-1/3 border-b border-gray-600 flex flex-col items-center justify-start text-green-400 text-sm bg-black ">
-          <ECGDisplay 
-            width={800} 
-            height={65} 
+          <ECGDisplay
+            width={800}
+            height={65}
             rhythmType={rhythmType} // Pass rhythmType directly
-            showSynchroArrows={showSynchroArrows} 
+            showSynchroArrows={showSynchroArrows}
             heartRate={heartRate} // Pass heartRate directly
             isPacing={isPacing} // Pass pacing status
             pacerFrequency={pacerFrequency} // Pass pacer frequency
@@ -309,8 +351,8 @@ return (
           />
           <div className="w-full text-xs font-bold text-green-400 text-right ">
             <span>
-              {rhythmType === 'fibrillationVentriculaire' ? 'Fibrillation ventriculaire' : 
-               rhythmType === 'asystole'  ? 'Asystolie' : 'Rythme sinusal'}
+              {rhythmType === 'fibrillationVentriculaire' ? 'Fibrillation ventriculaire' :
+                rhythmType === 'asystole' ? 'Asystolie' : 'Rythme sinusal'}
             </span>
           </div>
         </div>
@@ -324,10 +366,10 @@ return (
           >
             <div className="flex flex-col">
               <div className="flex justify-between items-center mb-1">
-                <span className="font-medium">Stimulation interrompue</span>
+                <span className="font-medium">  {isPacing ? "Stimulation en cours" : "Stimulation interrompue"}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span>Stimul. sentinelle</span>
+                <span>Stimul. {pacerMode}</span>
               </div>
             </div>
 
@@ -342,23 +384,24 @@ return (
         <div className=" pt-5 pb-2 bg-black h-1/12 flex items-center justify-between  text-white text-xs ">
           <div className="flex">
             <div className="flex items-center gap-2">
-              <div className="bg-gray-500 px-2 py-0.5 h-full flex flex-col justify-center text-xs ">
+              <div className="bg-gray-500 px-5 py-0.5 h-full flex flex-col justify-center text-xs ">
                 <span>Début PNI </span>
               </div>
               <div className="flex items-center gap-2">
-              <div className="bg-gray-500 px-2 py-0.5 h-full flex flex-col justify-center text-xs mr-1 ">
-                <span>{ isPacing ? "Pause Stimulateur" : "Début Stimulateur"}</span>
+                <div className="bg-gray-500 px-4 py-0.5 h-full flex flex-col justify-center text-xs mr-1 ">
+                  <span>
+                    {isPacing ? "Pause Stimulateur" : "Début Stimulateur"}
+                  </span>
+                </div>
               </div>
-            </div>
             </div>
           </div>
           <div className="flex">
-          
-            <div className="flex items-center gap-2">
-              <div className="bg-gray-500 px-2 py-0.5 h-full flex flex-col justify-center text-xs mr-1">
+            <div className="flex items-center gap-5">
+              <div className="bg-gray-500 px-4 py-0.5 h-full flex flex-col justify-center text-xs mr-5">
                 <span>Réglages stimulateur</span>
               </div>
-              <div className="bg-gray-500 px-2 py-0.5 h-full flex flex-col justify-center text-xs">
+              <div className="bg-gray-500 px-6 py-0.5 h-full flex flex-col justify-center text-xs mr-1">
                 <span>Menu</span>
               </div>
             </div>
@@ -376,33 +419,34 @@ return (
 
         {/* Menu Fréquence Stimulation */}
         {showReglagesStimulateurMenu && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+          <div className="absolute bottom-6 -right-1 transform translate-x-0 translate-y-0 z-50">
             <div className="bg-gray-300 border-2 border-black w-48 shadow-lg">
               <div className="bg-blue-600 px-4 py-2 border-b border-black">
                 <h3 className="text-white font-bold text-sm">Fréquence stimulation</h3>
               </div>
-              
+
               <div className="flex flex-col items-center py-4">
-                <div className="text-black text-2xl px-2 py-1 rounded mb-2">
-                  ▲
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="flex flex-col items-center">
+                    <div className="text-black text-2xl px-2 py-1 rounded">
+                      ▲
+                    </div>
+                    <div className="text-black text-2xl px-2 py-1 rounded">
+                      ▼
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-black text-2xl font-bold font-mono min-w-[60px] text-center">{pacerFrequency}</span>
+                    <span className="text-black text-sm">ppm</span>
+                  </div>
                 </div>
-                
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-black text-2xl font-bold font-mono min-w-[60px] text-center">{pacerFrequency}</span>
-                  <span className="text-black text-sm">ppm</span>
-                </div>
-                
-                <div className="text-black text-2xl px-2 py-1 rounded mb-4">
-                  ▼
-                </div>
-                
                 <div className="bg-gray-400 px-2 py-1 border border-gray-600 rounded text-black text-sm font-medium">
                   Fin
                 </div>
               </div>
             </div>
-            
-            <div 
+
+            <div
               className="fixed inset-0 bg-black bg-opacity-0 -z-10"
               onClick={() => setShowReglagesStimulateurMenu(false)}
             ></div>
@@ -411,33 +455,34 @@ return (
 
         {/* Menu Intensité Stimulation */}
         {showIntensiteMenu && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+          <div className="absolute bottom-6 -right-1 transform translate-x-0 translate-y-0 z-50">
             <div className="bg-gray-300 border-2 border-black w-48 shadow-lg">
               <div className="bg-blue-600 px-4 py-2 border-b border-black">
                 <h3 className="text-white font-bold text-sm">Intensité stimulation</h3>
               </div>
-              
+
               <div className="flex flex-col items-center py-4">
-                <div className="text-black text-2xl px-2 py-1 rounded mb-2">
-                  ▲
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="flex flex-col items-center">
+                    <div className="text-black text-2xl px-2 py-1 rounded">
+                      ▲
+                    </div>
+                    <div className="text-black text-2xl px-2 py-1 rounded">
+                      ▼
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-black text-2xl font-bold font-mono min-w-[60px] text-center">{pacerIntensity}</span>
+                    <span className="text-black text-sm">mA</span>
+                  </div>
                 </div>
-                
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-black text-2xl font-bold font-mono min-w-[60px] text-center">{pacerIntensity}</span>
-                  <span className="text-black text-sm">mA</span>
-                </div>
-                
-                <div className="text-black text-2xl px-2 py-1 rounded mb-4">
-                  ▼
-                </div>
-                
                 <div className="bg-gray-400 px-2 py-1 border border-gray-600 rounded text-black text-sm font-medium">
                   Fin
                 </div>
               </div>
             </div>
-            
-            <div 
+
+            <div
               className="fixed inset-0 bg-black bg-opacity-0 -z-10"
               onClick={() => setShowIntensiteMenu(false)}
             ></div>

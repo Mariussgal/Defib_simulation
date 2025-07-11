@@ -5,7 +5,7 @@ import AudioService from "../../services/AudioService";
 import type { RhythmType } from "../graphsdata/ECGRhythms";
 
 interface DAEDisplayProps {
-  frequency: string;
+  energy: string;
   chargeProgress: number;
   shockCount: number;
   isCharging: boolean; // État de charge en cours
