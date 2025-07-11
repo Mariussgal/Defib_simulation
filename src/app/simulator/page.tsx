@@ -158,13 +158,21 @@ const SimulatorPage: React.FC = () => {
   };
 
   const handleJoystickClick = () => {
-    if (defibrillator.displayMode === "Stimulateur" && stimulateurDisplayRef.current) {
+    if (
+      defibrillator.displayMode === "Stimulateur" &&
+      stimulateurDisplayRef.current
+    ) {
       stimulateurDisplayRef.current.selectCurrentItem();
-    } else if (defibrillator.displayMode === "Moniteur" && monitorDisplayRef.current) {
+      handleStimulatorMenuButton();
+    } else if (
+      defibrillator.displayMode === "Moniteur" &&
+      monitorDisplayRef.current
+    ) {
       monitorDisplayRef.current.selectCurrentItem();
+      handleMonitorMenuButton();
     }
   };
-
+  
   const handleStimulatorSettingsButton = () => stimulateurDisplayRef.current?.triggerReglagesStimulateur();
   const handleStimulatorMenuButton = () => stimulateurDisplayRef.current?.triggerMenu();
   const handleStimulatorStartButton = () => defibrillator.toggleIsPacing();
