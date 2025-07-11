@@ -9,7 +9,7 @@ export type PacerMode = "Fixe" | "Sentinelle";
 export interface DefibrillatorState {
   // Display
   displayMode: DisplayMode;
-  manualFrequency: string;
+  manualEnergy: string;
   rhythmType: RhythmType;
   heartRate: number;
 
@@ -42,7 +42,7 @@ export interface DefibrillatorState {
 export const useDefibrillator = () => {
   const [state, setState] = useState<DefibrillatorState>({
     displayMode: "ARRET",
-    manualFrequency: "1-10",
+    manualEnergy: "1-10",
     rhythmType: 'sinus',
     heartRate: 70,
     pacerFrequency: 70,
@@ -118,8 +118,8 @@ export const useDefibrillator = () => {
     updateState(updates);
   }, [updateState]);
 
-  const setManualFrequency = useCallback((frequency: string, onModeChangeCallback?: (mode: DisplayMode) => void) => {
-    updateState({ manualFrequency: frequency, lastEvent: `manualFrequencySetTo_${frequency}` });
+  const setmanualEnergy = useCallback((energy: string, onModeChangeCallback?: (mode: DisplayMode) => void) => {
+    updateState({ manualEnergy: energy, lastEvent: `manualEnergySetTo_${energy}` });
     if (state.displayMode !== "Manuel" && onModeChangeCallback) {
       onModeChangeCallback("Manuel");
     }
@@ -212,7 +212,7 @@ export const useDefibrillator = () => {
     toggleSynchroMode,
     clearLastEvent,
     updateState,
-    setManualFrequency,
+    setmanualEnergy,
     setPacerFrequency,
     setPacerIntensity,
     setPacerMode,
