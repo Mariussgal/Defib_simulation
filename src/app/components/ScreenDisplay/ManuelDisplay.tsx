@@ -17,6 +17,7 @@ import TimerDisplay from "../TimerDisplay";
 import type { RhythmType } from "../graphsdata/ECGRhythms";
 import AudioService from "../../services/AudioService";
 import VitalsDisplay from "../VitalsDisplay";
+import type { DisplayMode } from "../../hooks/useDefibrillator";
 
 interface ManuelDisplayProps {
   energy: string;
@@ -28,7 +29,7 @@ interface ManuelDisplayProps {
   heartRate?: number;
   isCharged?: boolean;
   onCancelCharge?: () => boolean;
-  displayMode?: string; // prop pour détecter les changements de mode
+  displayMode?: DisplayMode; // prop pour détecter les changements de mode
   isScenario4?: boolean;
   onDelayedShock?: () => void; // callback pour le choc retardé
   isScenario1Completed?: boolean;
