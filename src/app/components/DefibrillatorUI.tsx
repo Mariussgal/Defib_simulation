@@ -56,7 +56,7 @@ const DefibrillatorUI: React.FC<DefibrillatorUIProps> = ({
       case "Moniteur": return 35;
       case "Stimulateur": return 240;
       case "Manuel":
-        const point = RotaryMappingService.getMappingPoints().find(p => p.value === defibrillator.manualFrequency);
+        const point = RotaryMappingService.getMappingPoints().find(p => p.value === defibrillator.manualEnergy);
         return point ? point.angle : 60; // Default to 1-10 if not found
       default: return 0;
     }
