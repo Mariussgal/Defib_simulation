@@ -523,12 +523,6 @@ const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
               height={45}
               animationState={plethAnimation}
               isDotted={!showVitalSigns}
-              isFlatLine={
-                (rhythmType === "fibrillationVentriculaire" &&
-                  showVitalSigns) ||
-                (rhythmType === "tachycardieVentriculaire" && showVitalSigns) ||
-                (rhythmType === "asystole" && showVitalSigns)
-              }
             />
           </div>
 
