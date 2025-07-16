@@ -37,7 +37,8 @@ const DefibrillatorUI: React.FC<DefibrillatorUIProps> = ({
   handleChargeButtonClick,
   handleShockButtonClick,
   handleSynchroButtonClick,
-  handleJoystickRotation,
+  handleJoystickStepUp,
+  handleJoystickStepDown,
   handleJoystickClick,
   handleStimulatorSettingsButton,
   handleStimulatorMenuButton,
@@ -74,38 +75,66 @@ const DefibrillatorUI: React.FC<DefibrillatorUIProps> = ({
 
           {/* Buttons and Joystick Container */}
           <div className="flex items-center gap-10 mb-6">
-            {/* Button Columns */}
-            <div className="flex-1">
-              <div className="flex gap-4 mb-6 items-center justify-center">
-                {[...Array(4)].map((_, i) => (
-                  <button
-                    key={i}
-                    className="w-28 h-14 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 p-4 rounded-lg border-2 border-gray-500 transition-all touch-manipulation"
-                    onClick={() => {
-                      if (defibrillator.displayMode === "Stimulateur") {
-                        if (i === 1) handleStimulatorStartButton();
-                        else if (i === 2) handleStimulatorSettingsButton();
-                        else if (i === 3) handleStimulatorMenuButton();
-                      } else if (defibrillator.displayMode === "Manuel") {
-                        if (i === 2) handleCancelChargeButton();
-                      } else if (defibrillator.displayMode === "Moniteur") {
-                        if (i === 3) handleMonitorMenuButton();
-                      }
-                    }}
-                  ></button>
-                ))}
+                  {/* Colonnes de boutons */}
+                  <div className="flex-1">
+                    <div className="flex gap-4 mb-6 items-center justify-center">
+                      {[...Array(4)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="flex flex-col items-center gap-2"
+                        >
+                          <div className="w-2 h-8 bg-gray-600 -mt-5 rounded-full"></div>
+
+                          <button
+                            key={i}
+                            className="w-28 h-14 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 p-4 rounded-lg border-2 border-gray-500 transition-all touch-manipulation"
+                            onClick={() => {
+                              // Boutons 3 et 4 (index 2 et 3) en mode stimulateur
+                              if (defibrillator.displayMode === "Stimulateur") {
+                                if (i === 3) {
+                                  handleStimulatorSettingsButton();
+                                }  else if (i === 1) {
+                                  handleStimulatorStartButton();
+                                }
+                              } else if (
+                                defibrillator.displayMode === "Manuel"
+                              ) {
+                                if (i === 3) {
+                                  handleCancelChargeButton();
+                                }
+                              } 
+                            }}
+                          ></button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 4 boutons du bas */}
+                    <div className="flex gap-4 items-center justify-center">
+                      <button className="w-28 h-14 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 p-4 rounded-lg border-2 border-gray-500 transition-all flex items-center justify-center touch-manipulation">
+                        <Triangle className="w-7 h-7 text-white" />
+                      </button>
+                      <button className="w-28 h-14 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 p-4 rounded-lg border-2 border-gray-500 transition-all flex items-center justify-center touch-manipulation">
+                        <FlagTriangleRight className="w-7 h-7 text-white" />
+                      </button>
+                      <button className="w-28 h-14 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 p-4 rounded-lg border-2 border-gray-500 transition-all flex items-center justify-center touch-manipulation">
+                        <CopyMinus className="w-6 h-6 text-white" />
+                      </button>
+                      <button className="w-28 h-14 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 p-4 rounded-lg border-2 border-gray-500 transition-all flex items-center justify-center touch-manipulation">
+                        <Printer className="w-7 h-7 text-white" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Joystick */}
+                  <Joystick
+              onStepUp={handleJoystickStepUp}
+              onStepDown={handleJoystickStepDown}
+              onClick={handleJoystickClick}
+                  />
+                </div>
               </div>
-              <div className="flex gap-4 items-center justify-center">
-                <button className="w-28 h-14 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 p-4 rounded-lg border-2 border-gray-500 transition-all flex items-center justify-center touch-manipulation"><Triangle className="w-7 h-7 text-white" /></button>
-                <button className="w-28 h-14 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 p-4 rounded-lg border-2 border-gray-500 transition-all flex items-center justify-center touch-manipulation"><FlagTriangleRight className="w-7 h-7 text-white" /></button>
-                <button className="w-28 h-14 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 p-4 rounded-lg border-2 border-gray-500 transition-all flex items-center justify-center touch-manipulation"><CopyMinus className="w-6 h-6 text-white" /></button>
-                <button className="w-28 h-14 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 p-4 rounded-lg border-2 border-gray-500 transition-all flex items-center justify-center touch-manipulation"><Printer className="w-7 h-7 text-white" /></button>
-              </div>
-            </div>
-            {/* Joystick */}
-            <Joystick onRotationChange={handleJoystickRotation} onClick={handleJoystickClick} />
-          </div>
-        </div>
+
 
         {/* Right Side Panel */}
         <div className="w-80 bg-gray-700 rounded-xl p-4">

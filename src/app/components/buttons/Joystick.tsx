@@ -1,28 +1,55 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 
 interface JoystickProps {
-  onRotationChange?: (angle: number) => void;
+  onStepUp?: () => void;
+  onStepDown?: () => void;
   onClick?: () => void;
-  initialAngle?: number;
   size?: number;
+  numberOfSteps?: number;
 }
 
 const Joystick: React.FC<JoystickProps> = ({
-  onRotationChange,
+  onStepUp,
+  onStepDown,
   onClick,
-  initialAngle = 0,
-  size = 120
+  size = 120,
+  numberOfSteps = 16, // Default to 8 steps if not provided
 }) => {
-  const [angle, setAngle] = useState(initialAngle);
+  const [angle, setAngle] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
   const joystickRef = useRef<HTMLDivElement>(null);
 
-  // Refs to store initial angles for relative rotation calculation
-  const initialJoystickAngleRef = useRef(0);
-  const initialMouseAngleRef = useRef(0);
+  // Programmatically calculate snap angles based on the number of steps
+  const snapAngles = useMemo(() => {
+    if (numberOfSteps <= 0) return [0]; // Avoid division by zero
+    const stepAngle = 360 / numberOfSteps;
+    return Array.from({ length: numberOfSteps }, (_, i) => i * stepAngle);
+  }, [numberOfSteps]);
 
-  // Gets cross-platform event coordinates for both mouse and touch events.
+  /**
+   * Finds the closest predefined snap angle to a given target angle.
+   */
+  const findClosestSnapAngle = (targetAngle: number) => {
+    let minDifference = 360;
+    let closestAngle = snapAngles[0];
+
+    snapAngles.forEach(snapAngle => {
+      const diff = Math.abs(targetAngle - snapAngle);
+      const difference = Math.min(diff, 360 - diff); // Account for wraparound
+
+      if (difference < minDifference) {
+        minDifference = difference;
+        closestAngle = snapAngle;
+      }
+    });
+
+    return closestAngle;
+  };
+
+  /**
+   * Gets cross-platform event coordinates for both mouse and touch events.
+   */
   const getEventCoordinates = (e: MouseEvent | TouchEvent) => {
     if ("touches" in e) {
       const touch = e.touches[0] || e.changedTouches[0];
@@ -31,7 +58,9 @@ const Joystick: React.FC<JoystickProps> = ({
     return { clientX: e.clientX, clientY: e.clientY };
   };
 
-  // Calculates the angle of the cursor relative to the center of the joystick.
+  /**
+   * Calculates the angle of the cursor relative to the center of the joystick.
+   */
   const calculateAngle = (e: MouseEvent | TouchEvent) => {
     if (!joystickRef.current) return 0;
     const { clientX, clientY } = getEventCoordinates(e);
@@ -39,49 +68,67 @@ const Joystick: React.FC<JoystickProps> = ({
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
     const angleRad = Math.atan2(clientY - centerY, clientX - centerX);
-    // Add 90 degrees to align the 0-degree mark to the top
-    return (angleRad * 180) / Math.PI + 90;
+    const angleDeg = (angleRad * 180) / Math.PI + 90;
+    return (angleDeg + 360) % 360;
   };
 
-  // Handles the start of a drag interaction on the outer ring.
+  /**
+   * Handles the start of a drag interaction on the outer ring.
+   */
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation(); // Prevent triggering other events
+    e.stopPropagation();
     setIsDragging(true);
-    // Store the initial angles when drag starts
-    initialJoystickAngleRef.current = angle;
-    initialMouseAngleRef.current = calculateAngle(e as any);
   };
 
-  // Handles the movement during a drag interaction.
+  /**
+   * Handles the movement during a drag interaction.
+   * Snaps the joystick to the nearest angle and triggers step events on change.
+   */
   const handleMove = (e: MouseEvent | TouchEvent) => {
     if (!isDragging) return;
     const currentMouseAngle = calculateAngle(e);
+    const newSnapAngle = findClosestSnapAngle(currentMouseAngle);
 
-    // Calculate the change in angle from the start of the drag
-    let angleDelta = currentMouseAngle - initialMouseAngleRef.current;
+    if (newSnapAngle !== angle) {
+      // Determine direction of rotation for step events
+      const oldIndex = snapAngles.indexOf(angle);
+      const newIndex = snapAngles.indexOf(newSnapAngle);
 
-    // Calculate the new joystick angle based on the initial angle plus the delta
-    const newAngle = initialJoystickAngleRef.current + angleDelta;
+      // Handle wraparound for determining direction
+      if ((oldIndex === 0 && newIndex === snapAngles.length - 1)) {
+        onStepUp?.(); // Counter-clockwise
+      } else if (oldIndex === snapAngles.length - 1 && newIndex === 0) {
+        onStepDown?.(); // Clockwise
+      } else if (newIndex > oldIndex) {
+        onStepDown?.(); // Clockwise
+      } else {
+        onStepUp?.(); // Counter-clockwise
+      }
 
-    setAngle(newAngle);
-    onRotationChange?.(newAngle);
+      setAngle(newSnapAngle);
+    }
   };
 
-  // Handles the end of a drag interaction.
+  /**
+   * Handles the end of a drag interaction.
+   */
   const handleDragEnd = () => {
     setIsDragging(false);
   };
 
-  // Handles the click on the central button.
+  /**
+   * Handles the click on the central button.
+   */
   const handleCenterClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent the drag from starting
+    e.stopPropagation();
     onClick?.();
-    // Visual feedback for the click
     setIsPressed(true);
     setTimeout(() => setIsPressed(false), 150);
   };
 
-  // Effect to add and remove global event listeners for dragging.
+  /**
+   * Effect to add and remove global event listeners for dragging.
+   */
   useEffect(() => {
     if (isDragging) {
       const handleMouseMove = (e: MouseEvent) => handleMove(e);
@@ -102,7 +149,7 @@ const Joystick: React.FC<JoystickProps> = ({
         document.removeEventListener('touchend', handleDragEnd);
       };
     }
-  }, [isDragging]);
+  }, [isDragging, angle]); // Re-add angle to dependencies to get the latest value in the move handler
 
   return (
     <div className="flex items-center justify-center">
@@ -134,7 +181,6 @@ const Joystick: React.FC<JoystickProps> = ({
               width: `${size * 0.3}px`,  
               height: `${size * 0.3}px`, 
             }}
-            // Stop propagation to prevent drag start on click
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
           >

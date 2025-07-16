@@ -4,8 +4,7 @@ import ECGDisplay from "../graphsdata/ECGDisplay";
 import type { RhythmType } from "../graphsdata/ECGRhythms";
 import type { PacerMode } from "../../hooks/useDefibrillator";
 import AudioService from "../../services/AudioService";
-import { useFVVitalSigns } from "../../hooks/useFVVitalSigns";
-
+import VitalsDisplay from "../VitalsDisplay";
 
 interface StimulateurDisplayProps {
   rhythmType?: RhythmType;
@@ -33,6 +32,7 @@ export interface StimulateurDisplayRef {
   incrementValue: () => void;
   decrementValue: () => void;
   isInValueEditMode: () => boolean;
+  isMenuOpen: () => boolean;
 
 }
 
@@ -148,24 +148,24 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
     </div>
   );
 
-    useImperativeHandle(ref, () => ({
-      triggerReglagesStimulateur: () => {
-        // Si un autre menu est ouvert, ne rien faire
-        if (isAnyMenuOpen() && !showReglagesStimulateur) {
-          return;
-        }
-        setShowReglagesStimulateur(!showReglagesStimulateur);
-        setSelectedMenuIndex(0); // Reset selection
-      },
-      triggerMenu: () => {
-        // Si un autre menu est ouvert, ne rien faire
-        if (isAnyMenuOpen() && !showMenu) {
-          return;
-        }
-        setShowMenu(!showMenu);
-        setSelectedMenuIndex(0); // Reset selection
-      },
-
+  useImperativeHandle(ref, () => ({
+    triggerReglagesStimulateur: () => {
+      // Si un autre menu est ouvert, ne rien faire
+      if (isAnyMenuOpen() && !showReglagesStimulateur) {
+        return;
+      }
+      setShowReglagesStimulateur(!showReglagesStimulateur);
+      setSelectedMenuIndex(0); // Reset selection
+    },
+    triggerMenu: () => {
+      // Si un autre menu est ouvert, ne rien faire
+      if (isAnyMenuOpen() && !showMenu) {
+        return;
+      }
+      setShowMenu(!showMenu);
+      setSelectedMenuIndex(0); // Reset selection
+    },
+    isMenuOpen: isAnyMenuOpen,
     triggerStimulation: onTogglePacing,
 
     navigateUp: () => {
@@ -334,6 +334,8 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
               <div className="text-blue-400 text-xs">50</div>
             </div>
           </div>
+
+          
         </div>
         <div className="h-4 w-full flex items-center justify-center px-4 text-sm bg-white mb-1 flex-col">
           <span className="text-black text-xs">
