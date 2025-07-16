@@ -36,6 +36,7 @@ export interface MonitorDisplayRef {
   isInValueEditMode: () => boolean;
   incrementValue: () => void;
   decrementValue: () => void;
+  isMenuOpen: () => boolean;
 }
 
 const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
@@ -224,6 +225,7 @@ const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
         setShowMenu(!showMenu);
         setSelectedMenuIndex(0); // Reset selection
       },
+      isMenuOpen: isAnyMenuOpen,
       navigateUp: () => {
         if (showLimitesFCMenu || showLimitesBassesFCMenu) {
           return;
