@@ -12,6 +12,7 @@ import { useDefibrillator, type DisplayMode } from "../hooks/useDefibrillator";
 import { useResponsiveScale } from "../hooks/useResponsiveScale";
 import { RotaryMappingService } from "../services/RotaryMappingService";
 import { useScenarioPlayer, type ScenarioConfig } from "../hooks/useScenarioPlayer";
+import { useDeviceOrientation } from "../hooks/useDeviceOrientation";
 import { useElectrodeValidation } from "../hooks/useElectrodeValidation";
 import ElectrodeValidationOverlay from "../components/ElectrodeValidationOverlay";
 import { RhythmType } from "../components/graphsdata/ECGRhythms";
@@ -22,6 +23,7 @@ const SimulatorPage: React.FC = () => {
   const stimulateurDisplayRef = useRef<StimulateurDisplayRef>(null);
   const manuelDisplayRef = useRef<ManuelDisplayRef>(null);
   const monitorDisplayRef = useRef<MonitorDisplayRef>(null);
+  const { isMobile, orientation } = useDeviceOrientation();
   const scale = useResponsiveScale();
 
   // --- State Management Hooks ---
@@ -50,13 +52,20 @@ const SimulatorPage: React.FC = () => {
   // --- Timers ---
   const bootTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const targetModeRef = useRef<DisplayMode | null>(null);
+
+  useEffect(() => {
+    targetModeRef.current = targetMode;
+  }, [targetMode]);
 
   // --- Scenario Management ---
   const handleStartScenario = async (scenarioId: string) => {
     try {
+      defibrillator.resetState();
+
       const scenarioModule = await import(`../data/scenarios/${scenarioId}.json`);
       const scenarioConfig: ScenarioConfig = scenarioModule.default;
-
+     
       scenarioPlayer.startScenario(scenarioConfig);
     } catch (error) {
       console.error("Error starting scenario:", error);
@@ -67,38 +76,67 @@ const SimulatorPage: React.FC = () => {
     scenarioPlayer.stopScenario();
     setManualRhythm('sinus');
     setManualHeartRate(70);
-    defibrillator.setDisplayMode('ARRET');
+    defibrillator.resetState();
   };
 
   // --- Event Handlers ---
   const handleModeChange = (newMode: DisplayMode) => {
+    // Case 1: Turning the machine OFF.
     if (newMode === "ARRET") {
+      // Always stop any ongoing boot sequence.
       if (bootTimeoutRef.current) clearTimeout(bootTimeoutRef.current);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+
+      // Reset all booting states.
       setIsBooting(false);
       setTargetMode(null);
       setBootProgress(0);
+
+      // Reset other relevant states.
       electrodeValidation.resetElectrodeValidation();
-      defibrillator.setDisplayMode(newMode);
+      defibrillator.setDisplayMode("ARRET");
       return;
     }
 
+    // Case 2: A boot sequence is already in progress.
+    if (isBooting) {
+      // Just update the target mode and let the sequence finish.
+      setTargetMode(newMode);
+      return;
+    }
+
+    // Case 3: Turning the machine ON from ARRET state.
     if (defibrillator.displayMode === "ARRET") {
       setIsBooting(true);
       setTargetMode(newMode);
       setBootProgress(0);
-      progressIntervalRef.current = setInterval(() => setBootProgress(prev => Math.min(prev + 2, 100)), 100);
+
+      // Start the progress bar animation.
+      progressIntervalRef.current = setInterval(() => {
+        setBootProgress(prev => Math.min(prev + 2, 100));
+      }, 100);
+
+      // After 5 seconds, complete the boot process.
       bootTimeoutRef.current = setTimeout(() => {
-        defibrillator.setDisplayMode(newMode);
+        // Use the ref here to get the latest value, avoiding the closure issue.
+        if (targetModeRef.current) {
+          defibrillator.setDisplayMode(targetModeRef.current);
+        }
+
+        // Clean up the boot state.
         setIsBooting(false);
         setTargetMode(null);
         setBootProgress(0);
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        bootTimeoutRef.current = null;
+
       }, 5000);
     } else {
+      // Case 4: Switching between modes when the machine is already ON.
       defibrillator.setDisplayMode(newMode);
     }
   };
+
 
   const handleRotaryValueChange = (value: number) => {
     const newValue = RotaryMappingService.mapRotaryToValue(value);
