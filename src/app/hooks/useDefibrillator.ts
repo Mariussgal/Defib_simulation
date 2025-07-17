@@ -39,6 +39,26 @@ export interface DefibrillatorState {
   lastEvent: string | null;
 }
 
+const initialDefibrillatorState: DefibrillatorState = {
+  displayMode: "ARRET",
+  manualEnergy: "1-10",
+  rhythmType: 'sinus',
+  heartRate: 70,
+  pacerFrequency: 70,
+  pacerIntensity: 30,
+  pacerMode: "Fixe",
+  isPacing: false,
+  isCharging: false,
+  chargeProgress: 0,
+  shockCount: 0,
+  isCharged: false,
+  isChargeButtonPressed: false,
+  isShockButtonPressed: false,
+  isShockButtonBlinking: false,
+  selectedChannel: 1,
+  isSynchroMode: false,
+  lastEvent: null,
+};
 export const useDefibrillator = () => {
   const [state, setState] = useState<DefibrillatorState>({
     displayMode: "ARRET",
@@ -75,6 +95,15 @@ export const useDefibrillator = () => {
     setState(prev => ({ ...prev, ...updates }));
   }, []);
 
+  const resetState = useCallback(() => {
+    if (chargeIntervalRef.current) {
+      clearInterval(chargeIntervalRef.current);
+      chargeIntervalRef.current = null;
+    }
+    audioServiceRef.current?.stopAll();
+    setState(initialDefibrillatorState);
+  }, []);
+
   // --- Pacer State Updaters ---
   const setPacerFrequency = useCallback((newFrequency: number) => {
     const freq = Math.max(30, Math.min(200, newFrequency));
@@ -105,18 +134,23 @@ export const useDefibrillator = () => {
 
   // --- Other Actions ---
   const setDisplayMode = useCallback((mode: DisplayMode) => {
+    // If setting mode to ARRET, reset the entire state.
+    if (mode === 'ARRET') {
+      resetState();
+      return;
+    }
+
     const updates: Partial<DefibrillatorState> = {
       displayMode: mode,
       lastEvent: `displayModeSetTo_${mode}`,
     };
-
 
     if (mode === 'Stimulateur') {
       updates.isSynchroMode = true;
     }
 
     updateState(updates);
-  }, [updateState]);
+  }, [updateState, resetState]);
 
   const setmanualEnergy = useCallback((energy: string, onModeChangeCallback?: (mode: DisplayMode) => void) => {
     updateState({ manualEnergy: energy, lastEvent: `manualEnergySetTo_${energy}` });
@@ -217,5 +251,6 @@ export const useDefibrillator = () => {
     setPacerIntensity,
     setPacerMode,
     toggleIsPacing,
+    resetState
   };
 };
