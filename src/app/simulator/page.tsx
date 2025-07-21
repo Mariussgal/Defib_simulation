@@ -256,9 +256,17 @@ const SimulatorPageContent: React.FC = () => {
         </div>
       </div></div>;
     }
-    if (defibrillator.displayMode !== "ARRET" && defibrillator.displayMode !== "DAE" && !electrodeValidation.isElectrodeValidated) {
-      return <ElectrodeValidationOverlay onValidate={electrodeValidation.validateElectrodes} />;
-    }
+    if (
+      defibrillator.displayMode === "DAE" &&
+      !electrodeValidation.isElectrodeValidated
+    ) {
+      return (
+        <ElectrodeValidationOverlay
+          onValidate={electrodeValidation.validateElectrodes}
+        />
+      );
+    } else { electrodeValidation.validateElectrodes }
+
     const effectiveRhythm = getEffectiveRhythm();
     const effectiveHeartRate = getEffectiveHeartRate();
     switch (defibrillator.displayMode) {
