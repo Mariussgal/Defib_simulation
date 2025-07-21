@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { NotificationService } from "../services/NotificationService";
-import AudioService from "../services/AudioService";
+import { useAudio } from "../context/AudioContext";
 import { RhythmType } from "../components/graphsdata/ECGRhythms";
 
 export type DisplayMode = "DAE" | "ARRET" | "Moniteur" | "Stimulateur" | "Manuel" | null;
@@ -81,14 +81,10 @@ export const useDefibrillator = () => {
     lastEvent: null,
   });
 
-  const audioServiceRef = useRef<AudioService | null>(null);
+  const audioService = useAudio();
   const chargeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    if (typeof window !== "undefined" && !audioServiceRef.current) {
-      audioServiceRef.current = new AudioService();
-    }
-  }, []);
+
 
   // --- Core State Updater ---
   const updateState = useCallback((updates: Partial<DefibrillatorState>) => {
@@ -100,7 +96,7 @@ export const useDefibrillator = () => {
       clearInterval(chargeIntervalRef.current);
       chargeIntervalRef.current = null;
     }
-    audioServiceRef.current?.stopAll();
+    audioService?.stopAll();
     setState(initialDefibrillatorState);
   }, []);
 
@@ -172,13 +168,13 @@ export const useDefibrillator = () => {
     updateState({ isChargeButtonPressed: true, lastEvent: "chargeStarted" });
     setTimeout(() => updateState({ isChargeButtonPressed: false }), 300);
     updateState({ isCharging: true, chargeProgress: 0, isCharged: false });
-    audioServiceRef.current?.playChargingSequence();
+    audioService?.playChargingSequence();
     chargeIntervalRef.current = setInterval(() => {
       setState(prev => {
         const newProgress = prev.chargeProgress + 2;
         if (newProgress >= 100) {
           if (chargeIntervalRef.current) clearInterval(chargeIntervalRef.current);
-          return { ...prev, chargeProgress: 100, isCharging: false, isCharged: true, lastEvent: 'chargeCompleted' };
+          return { ...prev, chargeProgress: 100, isCharging: false, isCharged: true,  isShockButtonBlinking: true, lastEvent: 'chargeCompleted' };
         }
         return { ...prev, chargeProgress: newProgress };
       });
@@ -198,10 +194,10 @@ export const useDefibrillator = () => {
       setState(s => {
         if (!s.isCharged) return s;
 
-        if (audioServiceRef.current) {
-          audioServiceRef.current.stopAll();
-          audioServiceRef.current.playDAEChocDelivre();
-          setTimeout(() => audioServiceRef.current?.playCommencerRCP(), 2000);
+        if (audioService) {
+          audioService.stopAll();
+          audioService.playDAEChocDelivre();
+          setTimeout(() => audioService?.playCommencerRCP(), 2000);
         }
 
         return {
@@ -229,8 +225,8 @@ export const useDefibrillator = () => {
 
   const cancelCharge = useCallback(() => {
     if (state.isCharged && state.chargeProgress === 100) {
-      audioServiceRef.current?.stopAll();
-      updateState({ isCharged: false, chargeProgress: 0, isCharging: false, lastEvent: 'chargeCanceled' });
+      audioService?.stopAll();
+      updateState({ isCharged: false, chargeProgress: 0, isCharging: false, isShockButtonBlinking:false, lastEvent: 'chargeCanceled' });
       return true;
     }
     return false;

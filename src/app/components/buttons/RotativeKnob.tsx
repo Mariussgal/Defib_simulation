@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import AudioService from '../../services/AudioService';
+import { useAudio } from '../../context/AudioContext';
 
 interface RotativeKnobProps {
   onValueChange?: (value: number) => void;
@@ -13,7 +13,8 @@ const RotativeKnob: React.FC<RotativeKnobProps> = ({
   const [rotaryValue, setRotaryValue] = useState(initialValue);
   const [isDragging, setIsDragging] = useState(false);
   const rotaryRef = useRef<HTMLDivElement>(null);
-
+  const audioService = useAudio();
+  const canVibrate = ('vibrate' in navigator);
   // Refs to store initial angles for relative rotation calculation
   const initialKnobAngleRef = useRef(0);
   const initialMouseAngleRef = useRef(0);
@@ -109,6 +110,7 @@ const RotativeKnob: React.FC<RotativeKnobProps> = ({
     const closestSnapAngle = findClosestAngle(newAngle);
 
     if (closestSnapAngle !== rotaryValue) {
+      if (canVibrate) navigator.vibrate(1);
       setRotaryValue(closestSnapAngle);
       onValueChange?.(closestSnapAngle);
     }

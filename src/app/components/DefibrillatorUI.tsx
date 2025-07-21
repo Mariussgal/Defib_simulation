@@ -11,6 +11,7 @@ import RotativeKnob from "./buttons/RotativeKnob";
 import Synchro from "./buttons/Synchro";
 import { DefibrillatorState } from '../hooks/useDefibrillator';
 import { RotaryMappingService } from '../services/RotaryMappingService';
+import { useAudio } from '../context/AudioContext';
 
 interface DefibrillatorUIProps {
   defibrillator: DefibrillatorState;
@@ -19,7 +20,8 @@ interface DefibrillatorUIProps {
   handleChargeButtonClick: () => void;
   handleShockButtonClick: () => void;
   handleSynchroButtonClick: () => void;
-  handleJoystickRotation: (angle: number) => void;
+  handleJoystickStepUp: () => void;
+  handleJoystickStepDown: () => void;
   handleJoystickClick: () => void;
   handleStimulatorSettingsButton: () => void;
   handleStimulatorMenuButton: () => void;
@@ -48,7 +50,8 @@ const DefibrillatorUI: React.FC<DefibrillatorUIProps> = ({
   isShockButtonBlinking,
   daePhase,
 }) => {
-    
+  const audioService = useAudio();
+  const canVibrate = ('vibrate' in navigator);
   // Helper function to get the correct angle for the rotary knob based on the current state
   const getCurrentRotaryAngle = (): number => {
     switch (defibrillator.displayMode) {
@@ -89,6 +92,8 @@ const DefibrillatorUI: React.FC<DefibrillatorUIProps> = ({
                             key={i}
                             className="w-28 h-14 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 p-4 rounded-lg border-2 border-gray-500 transition-all touch-manipulation"
                             onClick={() => {
+                              if (canVibrate) navigator.vibrate(5);
+                              audioService.playClickSound("soft");
                               // Boutons 3 et 4 (index 2 et 3) en mode stimulateur
                               if (defibrillator.displayMode === "Stimulateur") {
                                 if (i === 3) {
@@ -151,7 +156,7 @@ const DefibrillatorUI: React.FC<DefibrillatorUIProps> = ({
               <span className="text-white text-2xl font-bold">2</span>
               <button
                 className={`flex-1 h-16 rounded-lg transition-all touch-manipulation transform ${defibrillator.isChargeButtonPressed ? "scale-95 bg-yellow-300 border-yellow-200" : "bg-yellow-500 border-yellow-400 hover:bg-yellow-400 active:bg-yellow-300"}`}
-                onClick={handleChargeButtonClick}
+                onClick={() => { handleChargeButtonClick(); if (canVibrate) navigator.vibrate(10); }}
               >
                 <div className={`w-full h-full bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-md flex items-center justify-center relative transition-all ${defibrillator.isChargeButtonPressed ? "from-yellow-300 to-yellow-400" : ""}`}>
                   <div className="absolute left-2"><span className="text-black text-xs font-bold">Charge</span></div>
@@ -163,8 +168,8 @@ const DefibrillatorUI: React.FC<DefibrillatorUIProps> = ({
             <div className="flex items-center gap-4">
               <span className="text-white text-2xl font-bold">3</span>
               <button
-                className={`flex-1 h-16 rounded-lg transition-all touch-manipulation transform ${defibrillator.isShockButtonPressed ? "scale-95 bg-orange-300 border-orange-200" : isShockButtonBlinking || (defibrillator.displayMode === "DAE" && daePhase === "attente_choc") ? "bg-orange-500 border-orange-400 shadow-lg animate-pulse" : "bg-orange-500 border-orange-400 hover:bg-orange-400 active:bg-orange-300"}`}
-                onClick={handleShockButtonClick}
+                className={`flex-1 h-16 rounded-lg transition-all touch-manipulation transform ${defibrillator.isShockButtonPressed ? "scale-95 bg-orange-300 border-orange-200" : isShockButtonBlinking ? "bg-orange-500 border-orange-400 shadow-lg  animate-[glowing-light_1s_infinite]" : "bg-orange-500 border-orange-400 hover:bg-orange-400 active:bg-orange-300"}`}
+                onClick={() => { handleShockButtonClick(); if (canVibrate) navigator.vibrate(10); }}
               >
                 <div className={`w-full h-full bg-gradient-to-r rounded-md flex items-center justify-center relative transition-all ${defibrillator.isShockButtonPressed ? "from-orange-300 to-orange-400" : "from-orange-400 to-orange-500"}`}>
                   <div className="absolute left-2"><span className="text-black text-xs font-bold">Choc</span></div>

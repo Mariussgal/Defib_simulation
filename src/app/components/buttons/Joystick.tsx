@@ -1,5 +1,5 @@
+import { useAudio } from '@/app/context/AudioContext';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-
 interface JoystickProps {
   onStepUp?: () => void;
   onStepDown?: () => void;
@@ -19,7 +19,8 @@ const Joystick: React.FC<JoystickProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
   const joystickRef = useRef<HTMLDivElement>(null);
-
+  const audioService = useAudio();
+  const canVibrate = ('vibrate' in navigator);
   // Programmatically calculate snap angles based on the number of steps
   const snapAngles = useMemo(() => {
     if (numberOfSteps <= 0) return [0]; // Avoid division by zero
@@ -90,6 +91,7 @@ const Joystick: React.FC<JoystickProps> = ({
     const newSnapAngle = findClosestSnapAngle(currentMouseAngle);
 
     if (newSnapAngle !== angle) {
+      if (canVibrate) navigator.vibrate(1);
       // Determine direction of rotation for step events
       const oldIndex = snapAngles.indexOf(angle);
       const newIndex = snapAngles.indexOf(newSnapAngle);
@@ -119,7 +121,9 @@ const Joystick: React.FC<JoystickProps> = ({
   /**
    * Handles the click on the central button.
    */
-  const handleCenterClick = (e: React.MouseEvent) => {
+  const handleCenterClick = (e: MouseEvent | TouchEvent) => {
+    if (canVibrate) navigator.vibrate(10);
+    audioService.playClickSound("normal");
     e.stopPropagation();
     onClick?.();
     setIsPressed(true);

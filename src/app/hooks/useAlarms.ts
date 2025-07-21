@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import AudioService from '../services/AudioService';
+import { useAudio } from '../context/AudioContext'; 
 import type { RhythmType } from '../components/graphsdata/ECGRhythms';
 
 /**
@@ -19,22 +19,16 @@ interface AlarmState {
  */
 export const useAlarms = (rhythmType: RhythmType, showFCValue: boolean): AlarmState => {
   const fvHeartRates = [169, 170, 180, 175, 163, 173, 190];
-  const audioServiceRef = useRef<AudioService | null>(null);
+  const audioService = useAudio();
 
   const [alarmState, setAlarmState] = useState<AlarmState>({
-    heartRate: 169,
+    heartRate: 115,
     isBlinking: false,
     showAlarmBanner: false
   });
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Initialize AudioService on component mount.
-  useEffect(() => {
-    if (typeof window !== "undefined" && !audioServiceRef.current) {
-      audioServiceRef.current = new AudioService();
-    }
-  }, []);
 
   // Effect to manage vital sign values and visual blinking for alarming rhythms.
   useEffect(() => {
@@ -69,8 +63,8 @@ export const useAlarms = (rhythmType: RhythmType, showFCValue: boolean): AlarmSt
 
   // Effect to manage audio alerts based on rhythm and UI state.
   useEffect(() => {
-    const audio = audioServiceRef.current;
-    if (!audio) return;
+   
+    if (!audioService) return;
 
     const isAlarmableRhythm = rhythmType === "fibrillationVentriculaire" ||
       rhythmType === "fibrillationAtriale" ||
@@ -78,20 +72,20 @@ export const useAlarms = (rhythmType: RhythmType, showFCValue: boolean): AlarmSt
       rhythmType === "asystole";
 
     if (!showFCValue) {
-      audio.stopFVAlarmSequence();
-      audio.startFCBeepSequence();
+      audioService.stopFVAlarmSequence();
+      audioService.stopFCBeepSequence();
     } else if (isAlarmableRhythm) {
-      audio.stopFCBeepSequence();
-      audio.startFVAlarmSequence();
+      audioService.stopFCBeepSequence();
+      audioService.startFVAlarmSequence();
     } else {
-      audio.stopFCBeepSequence();
-      audio.stopFVAlarmSequence();
+      audioService.startFCBeepSequence();
+      audioService.stopFVAlarmSequence();
     }
 
-    // Cleanup audio on unmount or when dependencies change.
+    // Cleanup audioService on unmount or when dependencies change.
     return () => {
-      audio.stopFCBeepSequence();
-      audio.stopFVAlarmSequence();
+      audioService.stopFCBeepSequence();
+      audioService.stopFVAlarmSequence();
     };
   }, [showFCValue, rhythmType]);
 
