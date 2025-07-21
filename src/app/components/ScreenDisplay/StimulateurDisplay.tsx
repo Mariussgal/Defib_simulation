@@ -38,7 +38,7 @@ export interface StimulateurDisplayRef {
 
 const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayProps>(({
   rhythmType = 'sinus',
-  showSynchroArrows = false,
+  showSynchroArrows = true,
   heartRate = 70,
   isScenario1Completed = false,
   pacerFrequency,
