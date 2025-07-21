@@ -1,70 +1,73 @@
-import { useState, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import DropdownMenu from "./DropdownMenu";
 import ECGRhythmDropdown from "./controls/ECGRhythmDropdown";
 import type { RhythmType } from "./graphsdata/ECGRhythms";
 
 interface HeaderProps {
-  onStartScenario?: (scenarioId: string) => void;
+  // Manual Mode Props
+  onStartScenario: (scenarioId: string) => void;
   currentRhythm: RhythmType;
   onRhythmChange: (rhythm: RhythmType) => void;
-  isScenarioActive: boolean;
   heartRate: number;
   onHeartRateChange: (rate: number) => void;
-  showVitalSignsHint: boolean;
+
+  // Scenario Mode Props
+  isScenarioActive: boolean;
+  onExitScenario: () => void;
+  scenarioTitle?: string;
+  currentStepNumber?: number;
+  totalSteps?: number;
+  showStepNotifications: boolean;
+  onToggleStepNotifications: () => void;
 }
 
 export default function Header({
   onStartScenario,
+  onExitScenario,
   currentRhythm,
   onRhythmChange,
   isScenarioActive,
+  scenarioTitle,
   heartRate,
   onHeartRateChange,
-  showVitalSignsHint,
+  currentStepNumber,
+  totalSteps,
+  showStepNotifications,
+  onToggleStepNotifications,
 }: HeaderProps) {
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-  
-
-  if (!isClient) {
-    return null;
-  }
-
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: "60px",
-        backgroundColor: "transparent",
-        borderBottom: "transparent",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "flex-end",
-        padding: "0 20px",
-        zIndex: 1000,
-      }}
-    >
-      {showVitalSignsHint && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-100 bg-blue-500 text-white text-[11px] px-2 py-1 rounded-lg shadow-lg animate-pulse">
-          Cliquez sur les constantes (FC, SpO2, PNI) pour les afficher
-        </div>
-      )}
-      <div className="absolute left-6 z-50">
-        <ECGRhythmDropdown
-          currentRhythm={currentRhythm}
-          onRhythmChange={onRhythmChange}
-          isScenarioActive={isScenarioActive}
-          heartRate={heartRate}
-          onHeartRateChange={onHeartRateChange}
-        />
+    <header className="h-[6vh] min-h-[50px] bg-gray-900/80 backdrop-blur-sm border-b border-gray-700 flex items-center justify-between px-4 sm:px-6 z-50">
+      {/* Left side: Controls or Scenario Title */}
+      <div className="flex-1 min-w-0">
+        {isScenarioActive ? (
+          <h1 className="text-lg font-bold text-white truncate">{scenarioTitle || "Scenario"}</h1>
+        ) : (
+          <ECGRhythmDropdown
+            currentRhythm={currentRhythm}
+            onRhythmChange={onRhythmChange}
+            isScenarioActive={isScenarioActive}
+            heartRate={heartRate}
+            onHeartRateChange={onHeartRateChange}
+          />
+        )}
       </div>
-      <DropdownMenu onStartScenario={onStartScenario} />
-    </div>
+
+      {/* Right side: Scenario Menu or Scenario Controls */}
+      <div className="flex items-center gap-2 sm:gap-4">
+        {isScenarioActive ? (
+          <>
+            {showStepNotifications && (
+              <span className="text-base text-white font-medium hidden sm:inline">{currentStepNumber} / {totalSteps}</span>
+            )}
+            <button onClick={onToggleStepNotifications} className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors">
+              {showStepNotifications ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+            <button onClick={onExitScenario} className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors text-sm">Quitter</button>
+          </>
+        ) : (
+          <DropdownMenu onStartScenario={onStartScenario} />
+        )}
+      </div>
+    </header>
   );
 }

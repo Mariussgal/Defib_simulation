@@ -1,6 +1,7 @@
-import React from "react";
-import { FileText, X } from "lucide-react";
-import { SCENARIOS } from "../../data/scenarios";
+import React from 'react';
+import { FileText, X } from 'lucide-react';
+import { SCENARIOS } from '../../data/scenarios';
+import Modal from './Modal';
 
 interface ScenarioModalProps {
   isOpen: boolean;
@@ -21,8 +22,7 @@ const ScenarioModal: React.FC<ScenarioModalProps> = ({
   if (!scenario) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-lg w-full mx-4 border border-gray-600 shadow-2xl max-h-[90vh] flex flex-col">
+    <Modal isOpen={isOpen} onClose={onClose}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-400" />
@@ -74,8 +74,7 @@ const ScenarioModal: React.FC<ScenarioModalProps> = ({
             Démarrer le scénario
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
 

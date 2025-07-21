@@ -1,6 +1,7 @@
 import React from "react";
 import { FileText, X, ChevronDown } from "lucide-react";
 import { SCENARIOS, COLOR_CLASSES } from "../../data/scenarios";
+import Modal from './Modal';
 
 interface ScenariosListModalProps {
   isOpen: boolean;
@@ -16,8 +17,7 @@ const ScenariosListModal: React.FC<ScenariosListModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50  ">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-lg w-full mx-4 border border-gray-600 shadow-2xl max-h-[90vh] flex flex-col">
+    <Modal isOpen={isOpen} onClose={onClose}>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-400" />
@@ -62,8 +62,7 @@ const ScenariosListModal: React.FC<ScenariosListModalProps> = ({
             Fermer
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
 

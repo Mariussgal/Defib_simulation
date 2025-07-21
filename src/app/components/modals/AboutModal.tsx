@@ -1,5 +1,6 @@
-import React from "react";
-import { Zap, X } from "lucide-react";
+import React from 'react';
+import { Zap, X } from 'lucide-react';
+import Modal from './Modal';
 
 interface AboutModalProps {
   isOpen: boolean;
@@ -10,8 +11,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-600 shadow-2xl">
+    <Modal isOpen={isOpen} onClose={onClose}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Zap className="w-5 h-5 text-blue-400" />À propos
@@ -60,8 +60,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
             Fermer
           </button>
         </div>
-      </div>
-    </div>
+      </Modal>
   );
 };
 
