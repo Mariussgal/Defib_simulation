@@ -1,31 +1,34 @@
 import React, { useRef, useEffect } from "react";
 import { getRhythmData, type RhythmType } from "./ECGRhythms";
 
-// Props for this new, self-contained component
 interface TwoLeadECGDisplayProps {
   width?: number;
-  heightPerTrace?: number;
+  height?: number;
   rhythmType?: RhythmType;
   showSynchroArrows?: boolean;
   heartRate?: number;
-  durationSeconds?: number; // Reintroduced this prop
+  durationSeconds?: number;
   chargeProgress: number;
   shockCount: number;
   energy: string;
   isDottedAsystole?: boolean;
   showDefibrillatorInfo?: boolean;
   showRhythmText?: boolean;
-  showDefibrillatorInfo?: boolean;
-  showRhythmText?: boolean;
+  isPacing?: boolean;
+  pacerFrequency?: number;
+  pacerIntensity?: number;
 }
 
 const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
   width = 800,
-  heightPerTrace = 65,
-  rhythmType = "sinus",
+  height = 65,
+  rhythmType = 'sinus',
   showSynchroArrows = false,
   heartRate = 70,
-  durationSeconds = 7, // Default to 5 seconds per trace
+  durationSeconds = 7,
+  isPacing = false,
+  pacerFrequency = 70,
+  pacerIntensity = 30,
   chargeProgress,
   shockCount,
   energy,
@@ -45,128 +48,86 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
   const normalizationRef = useRef({ min: 0, max: 1 });
   const scanAccumulatorRef = useRef<number>(0);
   const lastFrameTimeRef = useRef<number>(0);
-  const lastArrowDrawTimeRef = useRef<number>(0);
   const lastYRefs = useRef<{ top: number | null; bottom: number | null }>({
     top: null,
     bottom: null,
   });
 
-  const propsRef = useRef({
-    showSynchroArrows,
-    rhythmType,
-    heartRate,
-    durationSeconds,
-    isDottedAsystole,
-  });
-  const lastYRefs = useRef<{ top: number | null; bottom: number | null }>({
-    top: null,
-    bottom: null,
-  });
-
-  const propsRef = useRef({
-    showSynchroArrows,
-    rhythmType,
-    heartRate,
-    durationSeconds,
-    isDottedAsystole,
-  });
+  const propsRef = useRef({ showSynchroArrows, durationSeconds, rhythmType, heartRate, isDottedAsystole, isPacing, pacerFrequency, pacerIntensity });
   useEffect(() => {
-    propsRef.current = {
-      showSynchroArrows,
-      rhythmType,
-      heartRate,
-      durationSeconds,
-      isDottedAsystole,
-    };
-    propsRef.current = {
-      showSynchroArrows,
-      rhythmType,
-      heartRate,
-      durationSeconds,
-      isDottedAsystole,
-    };
+    propsRef.current = { showSynchroArrows, durationSeconds, rhythmType, heartRate, isDottedAsystole, isPacing, pacerFrequency, pacerIntensity };
   });
 
-  // Effect for Data Loading and Peak Pre-computation
+  // Effect for Data Loading and Peak/Spike Pre-computation.
   useEffect(() => {
-    const newBuffer = getRhythmData(rhythmType, heartRate);
-    dataRef.current = newBuffer;
+    const { rhythmType, heartRate, isPacing, pacerFrequency, pacerIntensity } = propsRef.current;
 
+    const SAMPLING_RATE = 250;
+    const CAPTURE_THRESHOLD = 90;
+
+    let newBuffer: number[];
     const newPeakCandidates = new Set<number>();
-    const excludedRhythms: RhythmType[] = [
-      "fibrillationVentriculaire",
-      "asystole",
-    ];
-    const excludedRhythms: RhythmType[] = [
-      "fibrillationVentriculaire",
-      "asystole",
-    ];
+    const newPacingSpikes = new Set<number>();
 
-    if (!excludedRhythms.includes(rhythmType)) {
-      const sortedBuffer = [...newBuffer].sort((a, b) => a - b);
-      const min = Math.min(...newBuffer);
-      const max = Math.max(...newBuffer);
-      const threshold = min + (max - min) * 0.7;
-      const searchWindowRadius = 5;
-      const refractoryPeriodSamples = 38;
-
-      for (let i = 0; i < newBuffer.length; i++) {
-        const value = newBuffer[i];
-        if (value < threshold) continue;
-
-        let isWindowMax = true;
-        for (let j = 1; j <= searchWindowRadius; j++) {
-          if (
-            value < newBuffer[(i - j + newBuffer.length) % newBuffer.length] ||
-            value < newBuffer[(i + j) % newBuffer.length]
-          ) {
-            isWindowMax = false;
-            break;
+    if (isPacing) {
+      if (pacerIntensity >= CAPTURE_THRESHOLD) {
+        newBuffer = getRhythmData('electroEntrainement', pacerFrequency);
+        for (let i = 1; i < newBuffer.length; i++) {
+          if (newBuffer[i] - newBuffer[i - 1] >= 0.4) {
+            newPacingSpikes.add(i);
           }
         }
-        if (isWindowMax) {
-          newPeakCandidates.add(i);
-          i += refractoryPeriodSamples;
-        }
-        const value = newBuffer[i];
-        if (value < threshold) continue;
+      } else {
+        newBuffer = getRhythmData('bav3', heartRate);
 
-        let isWindowMax = true;
-        for (let j = 1; j <= searchWindowRadius; j++) {
-          if (
-            value < newBuffer[(i - j + newBuffer.length) % newBuffer.length] ||
-            value < newBuffer[(i + j) % newBuffer.length]
-          ) {
-            isWindowMax = false;
-            break;
+        const spikeIntervalSamples = (60 / pacerFrequency) * SAMPLING_RATE;
+        const totalSamples = newBuffer.length;
+        const numSpikes = Math.floor(totalSamples / spikeIntervalSamples);
+
+        for (let n = 1; n <= numSpikes; n++) {
+          const spikeIndex = Math.floor(n * spikeIntervalSamples);
+          if (spikeIndex < totalSamples) {
+            newPacingSpikes.add(spikeIndex);
           }
         }
-        if (isWindowMax) {
-          newPeakCandidates.add(i);
-          i += refractoryPeriodSamples;
+      }
+    } else {
+      newBuffer = getRhythmData(rhythmType, heartRate);
+
+      const excludedRhythms: RhythmType[] = ['fibrillationVentriculaire', 'asystole'];
+      if (!excludedRhythms.includes(rhythmType)) {
+        const refractoryPeriodSamples = 38;
+        const derivativeThreshold = 0.1;
+        for (let i = 1; i < newBuffer.length; i++) {
+          const diff = newBuffer[i] - newBuffer[i - 1];
+          if (Math.abs(diff) > derivativeThreshold) {
+            let peakIndex = i;
+            let peakValue = newBuffer[i];
+            const searchWindow = 15;
+            for (let j = 1; j < searchWindow && (i + j) < newBuffer.length; j++) {
+              if (newBuffer[i + j] > peakValue) {
+                peakValue = newBuffer[i + j];
+                peakIndex = i + j;
+              }
+            }
+            newPeakCandidates.add(peakIndex);
+            i = peakIndex + refractoryPeriodSamples;
+          }
         }
       }
     }
 
-
+    dataRef.current = newBuffer;
     peakCandidateIndicesRef.current = newPeakCandidates;
+    pacingSpikeIndicesRef.current = newPacingSpikes;
     normalizationRef.current = {
       min: Math.min(...newBuffer),
       max: Math.max(...newBuffer),
     };
 
-    //detect pacing spikes
-    const newPacingSpikes = new Set<number>();
-    if (rhythmType === "electroEntrainement") {
-      for (let i = 1; i < newBuffer.length; i++) {
-        // A pacing spike is characterized by a very large, sudden positive jump.
-        if (newBuffer[i] - newBuffer[i - 1] >= 0.4) {
-          newPacingSpikes.add(i);
-        }
-      }
-    }
-    pacingSpikeIndicesRef.current = newPacingSpikes;
-  }, [rhythmType, heartRate]);
+
+  }, [rhythmType, heartRate, isPacing, pacerFrequency, pacerIntensity]);
+
 
   // Effect for Animation and Drawing
   useEffect(() => {
@@ -183,24 +144,20 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
 
     scanAccumulatorRef.current = 0;
     lastFrameTimeRef.current = 0;
-    lastArrowDrawTimeRef.current = 0;
     lastYRefs.current = { top: null, bottom: null };
 
     const getNormalizedY = (value: number) => {
       const { min, max } = normalizationRef.current;
       const range = max - min;
-      const topMargin = heightPerTrace * 0.1;
-      const bottomMargin = heightPerTrace * 0.1;
-      const traceHeight = heightPerTrace - topMargin - bottomMargin;
+      const topMargin = height * 0.3;
+      const bottomMargin = height * 0.1;
+      const traceHeight = height - topMargin - bottomMargin;
       const normalizedValue = range === 0 ? 0.5 : (value - min) / range;
       const canvasCenter = topMargin + traceHeight / 2;
-      const { rhythmType } = propsRef.current;
-      if (rhythmType === "electroEntrainement" || rhythmType === "choc") {
-      if (rhythmType === "electroEntrainement" || rhythmType === "choc") {
-        // For pacing, use a fixed gain (pixels per mV) and center the trace.
-        // This causes large spikes to go off-screen (clipping).
-        const gain = 40; // 20px per 1mV
-        return (canvasCenter - value * gain) / 0.6;
+      const { rhythmType, isPacing } = propsRef.current;
+      if (rhythmType === 'electroEntrainement' || rhythmType === 'choc' || isPacing) {
+        const gain = 40;
+        return (canvasCenter - (value * gain)) / 0.6;
       } else {
         return topMargin + (1 - normalizedValue) * traceHeight;
       }
@@ -214,10 +171,10 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
       if (x > 0 && Math.round(x) % Math.round(timeStep) === 0) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x, heightPerTrace);
+        ctx.lineTo(x, height);
         ctx.stroke();
       }
-      for (let y = 0; y < heightPerTrace; y += 10) {
+      for (let y = 0; y < height; y += 10) {
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(x + 1, y);
@@ -225,38 +182,35 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
       }
     };
 
-    const drawArrow = (ctx: CanvasRenderingContext2D,x: number) => {
+    const drawArrow = (ctx: CanvasRenderingContext2D, x: number) => {
       ctx.fillStyle = '#FFFFFF';
       ctx.strokeStyle = '#FFFFFF';
       ctx.lineWidth = 2;
-
-      // Draw the arrow shaft
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, 10);
       ctx.stroke();
-
-      // Draw the arrowhead
       ctx.beginPath();
-      ctx.moveTo(x, 15);      // Tip
-      ctx.lineTo(x - 4, 10);  // Top-left
-      ctx.lineTo(x + 4, 10);  // Top-right
+      ctx.moveTo(x, 15);
+      ctx.lineTo(x - 4, 10);
+      ctx.lineTo(x + 4, 10);
       ctx.closePath();
       ctx.fill();
-  };
+    };
 
     const drawPacingSpike = (ctx: CanvasRenderingContext2D, x: number) => {
       ctx.strokeStyle = "white";
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(x, 0);
-      ctx.lineTo(x, heightPerTrace);
+      ctx.lineTo(x, height);
       ctx.stroke();
     };
+
     topCtx.fillStyle = "black";
-    topCtx.fillRect(0, 0, width, heightPerTrace);
+    topCtx.fillRect(0, 0, width, height);
     bottomCtx.fillStyle = "black";
-    bottomCtx.fillRect(0, 0, width, heightPerTrace);
+    bottomCtx.fillRect(0, 0, width, height);
     for (let x = 0; x < width; x++) {
       drawGridColumn(topCtx, x);
       drawGridColumn(bottomCtx, x);
@@ -276,8 +230,8 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
       const { showSynchroArrows, durationSeconds } = propsRef.current;
       const samplingRate = 250;
       const pixelsPerSecond = width / durationSeconds;
+      const samplesPerPixel = (durationSeconds * samplingRate) / width;
       const pixelsToAdvance = (deltaTime / 1000) * pixelsPerSecond;
-      const refractoryPeriodMs = 152;
       const totalTraceLength = width * 2;
 
       const oldAccumulator = scanAccumulatorRef.current;
@@ -293,22 +247,17 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
         const activeCtx = isTopTrace ? topCtx : bottomCtx;
         const x = isTopTrace ? pixelOnTape : pixelOnTape - width;
 
-        const timeAtPixel = currentX / pixelsPerSecond;
-        const sampleIndex =
-          Math.floor(timeAtPixel * samplingRate) % data.length;
+        const sampleIndex = Math.floor(currentX * samplesPerPixel) % data.length;
 
         const barX = (x + 2) % width;
         activeCtx.fillStyle = "black";
-        activeCtx.fillRect(barX, 0, 3, heightPerTrace);
+        activeCtx.fillRect(barX, 0, 3, height);
         drawGridColumn(activeCtx, barX);
 
-        if (pacingSpikeIndicesRef.current.has(sampleIndex)) {
-          drawPacingSpike(activeCtx, x);
-        }
         const { isDottedAsystole } = propsRef.current;
 
         if (isDottedAsystole) {
-          const centerY = heightPerTrace / 2;
+          const centerY = height / 2;
           if (x % 4 === 0) {
             activeCtx.fillStyle = "#00ff00";
             activeCtx.fillRect(x, centerY - 1, 2, 2);
@@ -339,11 +288,32 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
           }
         }
 
-        if (
-          showSynchroArrows &&
-          peakCandidateIndicesRef.current.has(sampleIndex)
-        ) {
-          drawArrow(activeCtx, x);
+        const checkWindow = Math.ceil(samplesPerPixel);
+
+        // Check for synchro arrows in the window
+        if (showSynchroArrows) {
+          let arrowFound = false;
+          for (let i = 0; i < checkWindow; i++) {
+            if (peakCandidateIndicesRef.current.has((sampleIndex + i) % data.length)) {
+              arrowFound = true;
+              break;
+            }
+          }
+          if (arrowFound) {
+            drawArrow(activeCtx, x);
+          }
+        }
+
+        // Check for pacing spikes in the window
+        let spikeFound = false;
+        for (let i = 0; i < checkWindow; i++) {
+          if (pacingSpikeIndicesRef.current.has((sampleIndex + i) % data.length)) {
+            spikeFound = true;
+            break;
+          }
+        }
+        if (spikeFound) {
+          drawPacingSpike(activeCtx, x);
         }
       }
 
@@ -353,7 +323,7 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
     animationRef.current = requestAnimationFrame(drawFrame);
 
     return () => cancelAnimationFrame(animationRef.current);
-  }, [width, heightPerTrace]);
+  }, [width, height]);
 
   return (
     <div className="flex-grow flex flex-col bg-black">
@@ -361,9 +331,9 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
         <canvas
           ref={topCanvasRef}
           width={width}
-          height={heightPerTrace}
+          height={height}
           className="w-full"
-          style={{ imageRendering: "pixelated", height: `${heightPerTrace}px` }}
+          style={{ imageRendering: "pixelated", height: `${height}px` }}
         />
       </div>
       <div className="w-full px-4 py-2">
@@ -385,9 +355,8 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
             </div>
             <div className="w-24 h-3 bg-gray-600 rounded">
               <div
-                className={`h-full bg-red-500 rounded transition-all duration-100 ${
-                  chargeProgress === 100 ? "animate-pulse" : ""
-                }`}
+                className={`h-full bg-red-500 rounded transition-all duration-100 ${chargeProgress === 100 ? "animate-pulse" : ""
+                  }`}
                 style={{ width: `${chargeProgress}%` }}
               />
             </div>
@@ -404,9 +373,9 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
         <canvas
           ref={bottomCanvasRef}
           width={width}
-          height={heightPerTrace}
+          height={height}
           className="w-full"
-          style={{ imageRendering: "pixelated", height: `${heightPerTrace}px` }}
+          style={{ imageRendering: "pixelated", height: `${height}px` }}
         />
       </div>
     </div>
