@@ -340,7 +340,11 @@ const SimulatorPageContent: React.FC = () => {
           {scenarioPlayer.failureMessage && <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"><div className="bg-red-500 text-white p-8 rounded-lg text-center"><h2 className="text-2xl font-bold">Erreur Critique</h2><p>{scenarioPlayer.failureMessage}</p></div></div>}
         </>
       )}
-
+      {!showFCValue &&  defibrillator.displayMode != "ARRET" && (
+        <div className="absolute top-1/8 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-100 bg-blue-500 text-white text-[11px] px-2 py-1 rounded-lg shadow-lg animate-pulse">
+          Cliquez sur les constantes (FC, SpO2, PNI) pour les afficher
+        </div>
+      )}
       <div className="hidden portrait:flex tablet:hidden text-center absolute  top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-100 bg-blue-500 text-white text-[11px] px-2 py-1 rounded-lg shadow-lg animate-pulse">
         <div className="flex flex-col items-center">
           <svg
