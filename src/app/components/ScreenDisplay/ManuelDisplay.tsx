@@ -29,10 +29,6 @@ interface ManuelDisplayProps {
   heartRate?: number;
   isCharged?: boolean;
   onCancelCharge?: () => boolean;
-  displayMode?: DisplayMode; // prop pour détecter les changements de mode
-  isScenario4?: boolean;
-  onDelayedShock?: () => void; // callback pour le choc retardé
-  isScenario1Completed?: boolean;
   showFCValue?: boolean;
   showVitalSigns?: boolean;
   onShowFCValueChange?: (showFCValue: boolean) => void;
@@ -50,16 +46,10 @@ const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(
       energy,
       chargeProgress,
       shockCount,
-      isCharging,
       rhythmType = "sinus",
       showSynchroArrows = false,
       heartRate = 70,
       isCharged = false,
-      onCancelCharge,
-      displayMode,
-      isScenario4 = false,
-      onDelayedShock,
-      isScenario1Completed = false,
       showFCValue = false,
       showVitalSigns = false,
       onShowFCValueChange,
@@ -67,16 +57,13 @@ const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(
     },
     ref,
   ) => {
-    // AudioService reference for FC beep
-    const audioServiceRef = useRef<AudioService | null>(null);
+
 
     const [showShockDelivered, setShowShockDelivered] = useState(false);
     const [showCPRMessage, setShowCPRMessage] = useState(false);
-    const [fibBlink, setFibBlink] = useState(false);
     const timer1Ref = useRef<NodeJS.Timeout | null>(null);
     const timer2Ref = useRef<NodeJS.Timeout | null>(null);
     const delayTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const [isDelayedShockPending, setIsDelayedShockPending] = useState(false);
 
     const clearAllTimers = () => {
       if (timer1Ref.current) clearTimeout(timer1Ref.current);
@@ -84,110 +71,7 @@ const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(
       if (delayTimerRef.current) clearTimeout(delayTimerRef.current);
     };
 
-    useEffect(() => {
-      if (isCharging) {
-        clearAllTimers();
-        setShowShockDelivered(false);
-        setShowCPRMessage(false);
-      }
-    }, [isCharging]);
-
-    useEffect(() => {
-      if (shockCount > 0) {
-        clearAllTimers();
-        setShowShockDelivered(true);
-        timer1Ref.current = setTimeout(() => {
-          setShowShockDelivered(false);
-          setShowCPRMessage(true);
-        }, 4000);
-    useEffect(() => {
-      if (shockCount > 0) {
-        clearAllTimers();
-        setShowShockDelivered(true);
-        timer1Ref.current = setTimeout(() => {
-          setShowShockDelivered(false);
-          setShowCPRMessage(true);
-        }, 4000);
-
-        timer2Ref.current = setTimeout(() => {
-          setShowCPRMessage(false);
-        }, 12000);
-        return () => clearAllTimers();
-      }
-    }, [shockCount]);
-
-    useEffect(() => {
-      if (
-        rhythmType === "fibrillationVentriculaire" ||
-        rhythmType === "fibrillationAtriale"
-      ) {
-        const interval = setInterval(() => setFibBlink((prev) => !prev), 500);
-
-        return () => clearInterval(interval);
-      }
-    }, [rhythmType]);
-
-    // Réinitialiser les messages quand on change de mode
-    useEffect(() => {
-      clearAllTimers();
-      setShowShockDelivered(false);
-      setShowCPRMessage(false);
-    }, [displayMode]);
-
-    const handleDelayedShock = () => {
-      if (!isScenario4 || !isCharged || isDelayedShockPending) return;
-
-      setIsDelayedShockPending(true);
-
-      delayTimerRef.current = setTimeout(() => {
-        setIsDelayedShockPending(false);
-        if (onDelayedShock) {
-          onDelayedShock();
-        }
-      }, 5000);
-    };
-
-    // Initialize AudioService
-    useEffect(() => {
-      if (typeof window !== "undefined" && !audioServiceRef.current) {
-        audioServiceRef.current = new AudioService();
-      }
-    }, []);
-
-    useEffect(() => {
-      if (audioServiceRef.current) {
-        if (!showFCValue) {
-          audioServiceRef.current.stopFVAlarmSequence();
-          audioServiceRef.current.startFCBeepSequence();
-        } else if (
-          rhythmType === "fibrillationVentriculaire" ||
-          rhythmType === "fibrillationAtriale" ||
-          rhythmType === "tachycardieVentriculaire" ||
-          rhythmType === "asystole"
-        ) {
-          // FV alarm only if FC is shown
-          audioServiceRef.current.stopFCBeepSequence();
-          audioServiceRef.current.startFVAlarmSequence();
-        } else {
-          // Stop all beeps if FC is shown and no FV
-          audioServiceRef.current.stopFCBeepSequence();
-          audioServiceRef.current.stopFVAlarmSequence();
-        }
-      }
-
-      // Cleanup function to stop all beeping when component unmounts
-      return () => {
-        if (audioServiceRef.current) {
-          audioServiceRef.current.stopFCBeepSequence();
-          audioServiceRef.current.stopFVAlarmSequence();
-        }
-      };
-    }, [showFCValue, rhythmType]);
-
-    useImperativeHandle(ref, () => ({
-      triggerCancelCharge: () => (onCancelCharge ? onCancelCharge() : false),
-      triggerDelayedShock: handleDelayedShock,
-    }));
+   
 
     return (
       <div className="absolute inset-3 bg-gray-900 rounded-lg">
@@ -244,24 +128,22 @@ const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(
             onShowFCValueChange={onShowFCValueChange || (() => { })}
             showVitalSigns={showVitalSigns}
             onShowVitalSignsChange={onShowVitalSignsChange || (() => { })}
-            isScenario4={isScenario4}
-            isScenario1Completed={isScenario1Completed}
           />
 
           {/* All in one ECG display containing defib info */}
           <div className="flex-grow border-b border-gray-600 flex flex-col bg-black">
             <TwoLeadECGDisplay
               width={800}
-              heightPerTrace={65}
+              height={45}
               rhythmType={showFCValue ? rhythmType : "asystole"}
               showSynchroArrows={showSynchroArrows}
               heartRate={heartRate}
+              energy={energy}
               chargeProgress={chargeProgress}
               shockCount={shockCount}
-              energy={energy}
               isDottedAsystole={!showFCValue}
               showDefibrillatorInfo={true}
-              showRhythmText={false}
+              showRhythmText={true}
             />
           </div>
 
@@ -273,7 +155,7 @@ const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(
               (rhythmType === "fibrillationVentriculaire" ||
                 rhythmType === "fibrillationAtriale")
                 ? "-mt-4"
-                : "mb-4"
+                : "mb-0"
             }`}
           >
             <div className="h-6 flex items-center justify-center relative mt-1">

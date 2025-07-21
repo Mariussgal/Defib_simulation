@@ -17,10 +17,6 @@ interface MonitorDisplayProps {
   rhythmType?: RhythmType;
   showSynchroArrows?: boolean;
   heartRate?: number;
-  showSynchroArrows?: boolean;
-  heartRate?: number;
-  isScenario4?: boolean;
-  isScenario1Completed?: boolean;
   energy?: string;
   chargeProgress?: number;
   shockCount?: number;
@@ -47,8 +43,6 @@ const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
       rhythmType = "sinus",
       showSynchroArrows = false,
       heartRate = 70,
-      isScenario4 = false,
-      isScenario1Completed = false,
       energy = "50",
       chargeProgress = 0,
       shockCount = 0,
@@ -60,8 +54,6 @@ const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
     ref,
   ) => {
     const plethAnimation = usePlethAnimation();
-    const audioServiceRef = useRef<AudioService | null>(null);
-    const [fibBlink, setFibBlink] = useState(false);
 
     // États pour le menu
     const [showMenu, setShowMenu] = useState(false);
@@ -79,53 +71,8 @@ const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
     const [frequencePNIStartIndex, setFrequencePNIStartIndex] = useState(0);
     const [showPNIValues, setShowPNIValues] = useState(false);
 
-    // Initialize AudioService
-    useEffect(() => {
-      if (typeof window !== "undefined" && !audioServiceRef.current) {
-        audioServiceRef.current = new AudioService();
-      }
-    }, []);
 
-    useEffect(() => {
-      if (audioServiceRef.current) {
-        if (!showFCValue) {
-          audioServiceRef.current.stopFVAlarmSequence();
-          audioServiceRef.current.startFCBeepSequence();
-        } else if (
-          rhythmType === "fibrillationVentriculaire" ||
-          rhythmType === "fibrillationAtriale" ||
-          rhythmType === "tachycardieVentriculaire" ||
-          rhythmType === "asystole"
-        ) {
-          // FV alarm only if FC is shown
-          audioServiceRef.current.stopFCBeepSequence();
-          audioServiceRef.current.startFVAlarmSequence();
-        } else {
-          // Stop all beeps if FC is shown and no FV
-          audioServiceRef.current.stopFCBeepSequence();
-          audioServiceRef.current.stopFVAlarmSequence();
-        }
-      }
 
-      // Cleanup function to stop all beeping when component unmounts
-      return () => {
-        if (audioServiceRef.current) {
-          audioServiceRef.current.stopFCBeepSequence();
-          audioServiceRef.current.stopFVAlarmSequence();
-        }
-      };
-    }, [showFCValue, rhythmType]);
-
-    // Effet pour le clignotement de la fibrillation
-    useEffect(() => {
-      if (
-        rhythmType === "fibrillationVentriculaire" ||
-        rhythmType === "fibrillationAtriale"
-      ) {
-        const interval = setInterval(() => setFibBlink((prev) => !prev), 500);
-        return () => clearInterval(interval);
-      }
-    }, [rhythmType]);
 
     // Configuration du menu
     const menuConfigs = {
@@ -498,14 +445,12 @@ const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
             onShowFCValueChange={onShowFCValueChange || (() => { })}
             showVitalSigns={showVitalSigns}
             onShowVitalSignsChange={onShowVitalSignsChange || (() => { })}
-            isScenario4={isScenario4}
-            isScenario1Completed={isScenario1Completed}
           />
 
           <div className="flex-grow border-b border-gray-600 flex flex-col bg-black">
             <TwoLeadECGDisplay
               width={800}
-              heightPerTrace={45}
+              height={45}
               rhythmType={showFCValue ? rhythmType : "asystole"}
               showSynchroArrows={showSynchroArrows}
               heartRate={heartRate}
