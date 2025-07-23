@@ -7,7 +7,6 @@ import VitalsDisplay from "../VitalsDisplay";
 
 interface StimulateurDisplayProps {
   rhythmType?: RhythmType;
-  rhythmType?: RhythmType;
   showSynchroArrows?: boolean;
   heartRate?: number;
   isScenario1Completed?: boolean;

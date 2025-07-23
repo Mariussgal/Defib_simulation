@@ -5,13 +5,6 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useState,
-  useEffect,
-  useRef,
-} from "react";
 import TwoLeadECGDisplay from "../graphsdata/TwoLeadECGDisplay"; // Import the new, self-contained component
 import TimerDisplay from "../TimerDisplay";
 import type { RhythmType } from "../graphsdata/ECGRhythms";

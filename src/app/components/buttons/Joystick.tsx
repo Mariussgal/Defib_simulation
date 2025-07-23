@@ -123,13 +123,11 @@ const Joystick: React.FC<JoystickProps> = ({
   /**
    * Handles the click on the central button.
    */
-  const handleCenterClick = (e: MouseEvent | TouchEvent) => {
+  const handleCenterPress = () => {
     if (canVibrate) navigator.vibrate(10);
     audioService.playClickSound("normal");
-    e.stopPropagation();
     onClick?.();
     setIsPressed(true);
-    setTimeout(() => setIsPressed(false), 150);
   };
 
   /**
@@ -180,7 +178,8 @@ const Joystick: React.FC<JoystickProps> = ({
         >
           {/* Central clickable button */}
           <div
-            onClick={handleCenterClick}
+            onClick={(e) => { e.stopPropagation(); handleCenterPress(); }}
+            onTouchEnd={(e) => { e.stopPropagation(); handleCenterPress(); }}
             className={`absolute rounded-full bg-black transition-all duration-150 cursor-pointer flex items-center justify-center z-10 ${isPressed ? 'shadow-inner transform scale-95 bg-gray-800' : 'shadow-md'
               }`}
             style={{
