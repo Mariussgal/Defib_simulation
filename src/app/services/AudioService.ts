@@ -73,7 +73,7 @@ class AudioService {
   /**
    * Get shared AudioContext (reuse existing one)
    */
-  private getAudioContext(): AudioContext {
+  public getAudioContext(): AudioContext {
     if (!this.audioContext || this.audioContext.state === 'closed') {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     }

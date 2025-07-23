@@ -10,7 +10,6 @@ import PlethDisplay from "../graphsdata/PlethDisplay";
 import TimerDisplay from "../TimerDisplay";
 import type { RhythmType } from "../graphsdata/ECGRhythms";
 import { usePlethAnimation } from "../../hooks/usePlethAnimation";
-import AudioService from "../../services/AudioService";
 import VitalsDisplay from "../VitalsDisplay";
 
 interface MonitorDisplayProps {
@@ -462,6 +461,8 @@ const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
               showRhythmText={false}
             />
           </div>
+
+
 
           {/* Row 5 */}
           <div className="h-1/5 border-b border-gray-600 flex flex-col items-center justify-start text-green-400 text-sm bg-black ">
