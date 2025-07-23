@@ -20,7 +20,6 @@ const ECGDisplay: React.FC<ECGDisplayProps> = ({
   rhythmType = "sinus",
   showSynchroArrows = false,
   heartRate = 70,
-  heartRate = 70,
   durationSeconds = 7,
   isDottedAsystole = false,
   isPacing = false,

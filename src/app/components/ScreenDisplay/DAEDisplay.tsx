@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import ECGDisplay from "../graphsdata/ECGDisplay";
 import TimerDisplay from "../TimerDisplay";
-import AudioService from "../../services/AudioService";
+import { useAudio } from '../../context/AudioContext';
 import type { RhythmType } from "../graphsdata/ECGRhythms";
-import { useFVVitalSigns } from "../../hooks/useFVVitalSigns";
+import VitalsDisplay from "../VitalsDisplay";
 
 interface DAEDisplayProps {
   energy: string;
   chargeProgress: number;
   shockCount: number;
   isCharging: boolean; // État de charge en cours
+  isCharged: boolean;
   rhythmType?: RhythmType; // Type de rythme ECG
   showSynchroArrows?: boolean; // Afficher les flèches synchro
   heartRate?: number; // Fréquence cardiaque
@@ -26,6 +27,10 @@ interface DAEDisplayProps {
       | "pas_de_choc",
   ) => void; // Callback pour exposer la phase actuelle
   onElectrodePlacementValidated?: () => void; // Callback pour la validation du placement des électrodes
+  showFCValue?: boolean;
+  showVitalSigns?: boolean;
+  onShowFCValueChange?: (showFCValue: boolean) => void;
+  onShowVitalSignsChange?: (showVitalSigns: boolean) => void;
 }
 
 type Phase =
@@ -43,17 +48,18 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
   rhythmType = "sinus",
   showSynchroArrows = false,
   heartRate = 70,
+  isCharged = false,
   onShockReady,
   onPhaseChange,
   onElectrodePlacementValidated,
+  showFCValue = true,
+  showVitalSigns = true,
+  onShowFCValueChange,
+  onShowVitalSignsChange,
 }) => {
-  const audioServiceRef = useRef<AudioService | null>(null);
+  const audioService = useAudio();
 
-  useEffect(() => {
-    if (typeof window !== "undefined" && !audioServiceRef.current) {
-      audioServiceRef.current = new AudioService();
-    }
-  }, []);
+  
   // États du cycle DAE
   const [phase, setPhase] = useState<Phase>("placement");
   const [progressBarPercent, setProgressBarPercent] = useState(0);
@@ -151,16 +157,16 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
   useEffect(() => {
     // Nettoyage des timers à chaque changement de phase
     let timers: NodeJS.Timeout[] = [];
-    audioServiceRef.current?.clearRepetition();
+    audioService.clearRepetition();
 
     if (phase === "placement") {
-      audioServiceRef.current?.playDAEModeAdulte();
+      audioService.playDAEModeAdulte();
       timers.push(
         setTimeout(() => {
-          audioServiceRef.current?.playDAEInstructions();
+          audioService.playDAEInstructions();
           timers.push(
             setTimeout(() => {
-              audioServiceRef.current?.playDAEElectrodeReminder();
+              audioService.playDAEElectrodeReminder();
             }, 3000),
           );
         }, 2000),
@@ -169,14 +175,14 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
 
     if (phase === "preparation") {
       // « Écartez-vous du patient »
-      audioServiceRef.current?.playDAEEcartezVousduPatient();
+      audioService.playDAEEcartezVousduPatient();
       // « Analyse en cours »
       timers.push(
         setTimeout(() => {
-          audioServiceRef.current?.playDAEAnalyse();
+          audioService.playDAEAnalyse();
           timers.push(
             setTimeout(() => {
-              audioServiceRef.current?.playDAEEcartezVous();
+              audioService.playDAEEcartezVous();
             }, 2000),
           );
         }, 5000),
@@ -184,39 +190,41 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
     }
 
     if (phase === "pas_de_choc") {
-      audioServiceRef.current?.playPasDeChocIndique();
+      audioService.playPasDeChocIndique();
       timers.push(
         setTimeout(() => {
-          audioServiceRef.current?.playCommencerRCP();
+          audioService.playCommencerRCP();
         }, 3000),
       );
     }
 
     if (phase === "pre-charge") {
-      audioServiceRef.current?.playDAEEcartezVousduPatient();
+      audioService.playDAEEcartezVousduPatient();
       timers.push(
         setTimeout(() => {
-          audioServiceRef.current?.playDAEAnalyse();
+          audioService.playDAEAnalyse();
         }, 2000),
       );
     }
 
     if (phase === "charge") {
-      audioServiceRef.current?.playChargingSequence();
+      
+      audioService.playChargingSequence();
+
     }
 
     if (phase === "attente_choc") {
-      audioServiceRef.current?.playDAEChoc();
+      audioService.playDAEChoc();
       timers.push(
         setTimeout(() => {
-          audioServiceRef.current?.playDAEboutonOrange();
+          audioService.playDAEboutonOrange();
         }, 2000),
       );
     }
 
     return () => {
       timers.forEach(clearTimeout);
-      audioServiceRef.current?.clearRepetition();
+      audioService.clearRepetition();
     };
   }, [phase]);
 
@@ -229,8 +237,8 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
   const handleShockClick = () => {
     if (phase === "attente_choc") {
       setPhase("choc");
-      audioServiceRef.current?.stopAll();
-      audioServiceRef.current?.playDAEChocDelivre();
+      audioService.stopAll();
+      audioService.playDAEChocDelivre();
       setChargePercent(0);
       setProgressBarPercent(0);
 
@@ -332,25 +340,15 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
             </div>
 
             {/* Rangée 2 - Paramètres médicaux */}
-            <div className="text-left h-1/4 border-b border-gray-600 flex items-center gap-8 px-4 text-sm bg-black">
-              {/* FC */}
-              <div className="flex flex-col mt-1">
-                <div className="flex flex-row items-center gap-x-2">
-                  <div className="text-gray-400 text-xs">FC</div>
-                  <div className="text-gray-400 text-xs">bpm</div>
-                </div>
-                <div className="flex flex-row items-center gap-x-2">
-                  <div className="text-green-400 text-4xl font-bold">
-                    {rhythmType === "fibrillationVentriculaire"
-                      ? fvVitalSigns.heartRate
-                      : rhythmType === "asystole"
-                        ? "0"
-                        : heartRate}
-                  </div>
-                  <div className="text-green-400 text-xs">120</div>
-                </div>
-              </div>
-            </div>
+            <VitalsDisplay
+              rhythmType={rhythmType}
+              heartRate={heartRate}
+              showFCValue={true}
+              onShowFCValueChange={onShowFCValueChange || (() => { })}
+              showVitalSigns={true}
+              onShowVitalSignsChange={onShowVitalSignsChange || (() => { })}
+            />
+
             <div className="flex flex-row ">
               {phase === "preparation" && (
                 <div className="h-4 w-full flex items-center justify-center px-4 text-sm bg-white mb-1">
@@ -470,16 +468,17 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
                   </div>
                 </div>
               </div>
-              <div className="flex">
-                <div className="flex items-center gap-2">
-                  <div className="bg-gray-500 px-5 py-0.5 h-full mr-13 flex flex-col justify-center text-xs mr-1 ">
-                    <span>Annuler Charge</span>
-                  </div>
+              <div className="flex items-center gap-12 px-7 mr-3">
+                <div
+                  className={`px-2 py-1  text-xs ${isCharged
+                      ? "bg-red-500 text-white"
+                      : "bg-gray-500 text-gray-300"
+                    }`}
+                >
+                  <span>Annuler Charge</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="bg-gray-500 px-6 py-0.5 h-full flex flex-col justify-center text-xs ">
-                    <span>Menu</span>
-                  </div>
+                <div className="bg-gray-500 px-7 py-1 -mr-10 text-xs">
+                  <span>Menu</span>
                 </div>
               </div>
             </div>

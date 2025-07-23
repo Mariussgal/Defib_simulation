@@ -35,8 +35,6 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
   isDottedAsystole = false,
   showDefibrillatorInfo = true,
   showRhythmText = true,
-  showDefibrillatorInfo = true,
-  showRhythmText = true,
 }) => {
   const topCanvasRef = useRef<HTMLCanvasElement>(null);
   const bottomCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -135,8 +133,6 @@ const TwoLeadECGDisplay: React.FC<TwoLeadECGDisplayProps> = ({
     const bottomCanvas = bottomCanvasRef.current;
     if (!topCanvas || !bottomCanvas) return;
 
-    const topCtx = topCanvas.getContext("2d");
-    const bottomCtx = bottomCanvas.getContext("2d");
     const topCtx = topCanvas.getContext("2d");
     const bottomCtx = bottomCanvas.getContext("2d");
     if (!topCtx || !bottomCtx) return;

@@ -25,18 +25,10 @@
                 ]
             }
         },
-        {
-            "step": 1,
-            "description": "Placez les électrodes et validez le positionnement sur le patient.",
-            "validation": {
-                "type": "stateChange",
-                "property": "isElectrodeValidated",
-                "value": true
-            }
-        },
+       
       
         {
-            "step": 2,
+            "step": 1,
             "description": "Tournez la molette verte pour sélectionner une énergie de 150J.",
             "validation": {
                 "all_of": [
@@ -54,7 +46,7 @@
             }
         },
         {
-            "step": 3,
+            "step": 2,
             "description": "Pressez le bouton jaune marqué 'Charge' pour charger le défibrillateur.",
             "validation": {
                 "all_of": [
@@ -71,7 +63,7 @@
             }
         },
         {
-            "step": 4,
+            "step": 3,
             "description": "Pressez le bouton orange marqué 'Choc' pour délivrer l'énergie.",
             "validation": {
                 "type": "event",
