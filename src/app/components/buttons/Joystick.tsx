@@ -92,6 +92,8 @@ const Joystick: React.FC<JoystickProps> = ({
 
     if (newSnapAngle !== angle) {
       if (canVibrate) navigator.vibrate(1);
+      audioService.playClickSound("soft");
+
       // Determine direction of rotation for step events
       const oldIndex = snapAngles.indexOf(angle);
       const newIndex = snapAngles.indexOf(newSnapAngle);

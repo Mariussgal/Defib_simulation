@@ -111,6 +111,7 @@ const RotativeKnob: React.FC<RotativeKnobProps> = ({
 
     if (closestSnapAngle !== rotaryValue) {
       if (canVibrate) navigator.vibrate(1);
+      audioService.playClickSound("normal");
       setRotaryValue(closestSnapAngle);
       onValueChange?.(closestSnapAngle);
     }

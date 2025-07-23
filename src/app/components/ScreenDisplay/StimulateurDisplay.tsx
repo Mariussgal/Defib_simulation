@@ -3,7 +3,6 @@ import TimerDisplay from "../TimerDisplay";
 import ECGDisplay from "../graphsdata/ECGDisplay";
 import type { RhythmType } from "../graphsdata/ECGRhythms";
 import type { PacerMode } from "../../hooks/useDefibrillator";
-import AudioService from "../../services/AudioService";
 import VitalsDisplay from "../VitalsDisplay";
 
 interface StimulateurDisplayProps {
@@ -20,6 +19,10 @@ interface StimulateurDisplayProps {
   isPacing: boolean;
   onPacerModeChange: (mode: PacerMode) => void;
   onTogglePacing: () => void;
+  showFCValue?: boolean;
+  showVitalSigns?: boolean;
+  onShowFCValueChange?: (showFCValue: boolean) => void;
+  onShowVitalSignsChange?: (showVitalSigns: boolean) => void;
 }
 
 export interface StimulateurDisplayRef {
@@ -49,9 +52,12 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
   isPacing,
   onPacerModeChange,
   onTogglePacing,
+  showFCValue = false,
+  showVitalSigns = false,
+  onShowFCValueChange,
+  onShowVitalSignsChange,
 }, ref) => {
 
-  const audioServiceRef = useRef<AudioService | null>(null);
 
   const [showMenu, setShowMenu] = useState(false);
   const [showStimulationModeMenu, setShowStimulationModeMenu] = useState(false);
@@ -65,34 +71,6 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
 
   // États pour la navigation au joystick
   const [selectedMenuIndex, setSelectedMenuIndex] = useState(0);
-
-  // Initialize AudioService
-  useEffect(() => {
-    if (typeof window !== "undefined" && !audioServiceRef.current) {
-      audioServiceRef.current = new AudioService();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (audioServiceRef.current) {
-      if (
-        rhythmType === "fibrillationVentriculaire" ||
-        rhythmType === "fibrillationAtriale" ||
-        rhythmType === "tachycardieVentriculaire" ||
-        rhythmType === "asystole"
-      ) {
-        audioServiceRef.current.startFVAlarmSequence();
-      } else {
-        audioServiceRef.current.stopFVAlarmSequence();
-      }
-    }
-
-    return () => {
-      if (audioServiceRef.current) {
-        audioServiceRef.current.stopFVAlarmSequence();
-      }
-    };
-  }, [rhythmType]);
 
   //  vérifie si un menu ouvert
   const isAnyMenuOpen = () => {
@@ -279,64 +257,14 @@ const StimulateurDisplay = forwardRef<StimulateurDisplayRef, StimulateurDisplayP
           </div>
 
         {/* Rangée 2 - Paramètres médicaux */}
-        <div className="text-left h-1/4 border-b border-gray-600 flex items-center gap-8 px-4 text-sm bg-black">
-          {/* FC */}
-          <div className="flex flex-col">
-            <div className="flex flex-row items-center gap-x-2">
-              <div className="text-gray-400 text-xs">FC</div>
-              <div className="text-gray-400 text-xs">bpm</div>
-            </div>
-            <div className="flex flex-row items-center gap-x-2">
-              <div className="text-green-400 text-4xl font-bold">
-                {rhythmType === 'fibrillationVentriculaire' ? '--' : rhythmType === 'asystole' ? '30' : isPacing ? pacerFrequency : heartRate}
-              </div>
-              <div className="text-green-400 text-xs">120</div>
-            </div>
-          </div>
-
-            {/* SpO2 */}
-            <div className="flex flex-col">
-              <div className="flex flex-row items-center gap-x-2">
-                <div className="text-blue-400 text-2xl font-bold">SpO2</div>
-                <div className="text-blue-400 text-xs">%</div>
-              </div>
-
-              {/* SpO2 Value */}
-              <div className="flex flex-row  gap-x-2">
-                <div className="text-blue-400 text-4xl font-bold -mt-3">
-                  {rhythmType === "fibrillationVentriculaire" ||
-                  rhythmType === "fibrillationAtriale"
-                    ? "--"
-                    : "92"}
-                </div>
-                <div className="flex flex-col items-center">
-                  <div className="text-blue-400 text-xs">100</div>
-                  <div className="text-blue-400 text-xs">90</div>
-                </div>
-              </div>
-            </div>
-
-          {/* Pouls */}
-          <div className="flex flex-row  gap-x-2">
-            <div className="flex flex-col ">
-              <div className="text-blue-400 text-xs">Pouls</div>
-              <div className="text-blue-400 text-4xl font-bold">
-                {rhythmType === 'fibrillationVentriculaire' ? '--'
-                  : rhythmType === 'asystole' ? '30'
-                    : isScenario1Completed
-                      ? Math.max(0, heartRate + (heartRate >= 75 ? -3 : +2)) // FC ± 5
-                      : heartRate}
-              </div>
-            </div>
-            <div className="flex flex-col ">
-              <div className="text-blue-400 text-xs mb-2">bpm</div>
-              <div className="text-blue-400 text-xs">120</div>
-              <div className="text-blue-400 text-xs">50</div>
-            </div>
-          </div>
-
-          
-        </div>
+        <VitalsDisplay
+          rhythmType={rhythmType}
+          heartRate={heartRate}
+          showFCValue={showFCValue}
+          onShowFCValueChange={onShowFCValueChange || (() => { })}
+          showVitalSigns={showVitalSigns}
+          onShowVitalSignsChange={onShowVitalSignsChange || (() => { })}
+        />
         <div className="h-4 w-full flex items-center justify-center px-4 text-sm bg-white mb-1 flex-col">
           <span className="text-black text-xs">
             Connecter le câble ECG Fixez les fils d'electrodes.

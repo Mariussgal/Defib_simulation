@@ -15,9 +15,7 @@ import React, {
 import TwoLeadECGDisplay from "../graphsdata/TwoLeadECGDisplay"; // Import the new, self-contained component
 import TimerDisplay from "../TimerDisplay";
 import type { RhythmType } from "../graphsdata/ECGRhythms";
-import AudioService from "../../services/AudioService";
 import VitalsDisplay from "../VitalsDisplay";
-import type { DisplayMode } from "../../hooks/useDefibrillator";
 
 interface ManuelDisplayProps {
   energy: string;
