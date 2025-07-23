@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
-import { HelpCircle, CheckCircle, Eye, EyeOff } from "lucide-react";
 import MonitorDisplay, { type MonitorDisplayRef } from "../components/ScreenDisplay/MonitorDisplay";
 import DAEDisplay from "../components/ScreenDisplay/DAEDisplay";
 import ARRETDisplay from "../components/ScreenDisplay/ARRETDisplay";
@@ -9,10 +8,8 @@ import StimulateurDisplay, { type StimulateurDisplayRef } from "../components/Sc
 import ManuelDisplay, { type ManuelDisplayRef } from "../components/ScreenDisplay/ManuelDisplay";
 import Header from "../components/Header";
 import { useDefibrillator, type DisplayMode } from "../hooks/useDefibrillator";
-import { useResponsiveScale } from "../hooks/useResponsiveScale";
 import { RotaryMappingService } from "../services/RotaryMappingService";
 import { useScenarioPlayer, type ScenarioConfig } from "../hooks/useScenarioPlayer";
-import { useDeviceOrientation } from "../hooks/useDeviceOrientation";
 import { useElectrodeValidation } from "../hooks/useElectrodeValidation";
 import ElectrodeValidationOverlay from "../components/ElectrodeValidationOverlay";
 import { RhythmType } from "../components/graphsdata/ECGRhythms";
@@ -24,8 +21,7 @@ const SimulatorPageContent: React.FC = () => {
   const stimulateurDisplayRef = useRef<StimulateurDisplayRef>(null);
   const manuelDisplayRef = useRef<ManuelDisplayRef>(null);
   const monitorDisplayRef = useRef<MonitorDisplayRef>(null);
-  const { isMobile, orientation } = useDeviceOrientation();
-  const scale = useResponsiveScale();
+
 
   // --- State Management Hooks ---
   const [manualRhythm, setManualRhythm] = useState<RhythmType>('sinus');
@@ -66,7 +62,7 @@ const SimulatorPageContent: React.FC = () => {
 
       const scenarioModule = await import(`../data/scenarios/${scenarioId}.json`);
       const scenarioConfig: ScenarioConfig = scenarioModule.default;
-     
+
       scenarioPlayer.startScenario(scenarioConfig);
     } catch (error) {
       console.error("Error starting scenario:", error);
@@ -271,7 +267,7 @@ const SimulatorPageContent: React.FC = () => {
     const effectiveHeartRate = getEffectiveHeartRate();
     switch (defibrillator.displayMode) {
       case "ARRET": return <ARRETDisplay />;
-      case "DAE": return <DAEDisplay {...{ ...defibrillator, rhythmType: effectiveRhythm, heartRate: effectiveHeartRate, onPhaseChange: handleDaePhaseChange, onShockReady: handleDaeShockReady, onElectrodePlacementValidated: electrodeValidation.validateElectrodes, energy: "150" }} />;
+      case "DAE": return <DAEDisplay {...{ ...defibrillator, rhythmType: effectiveRhythm, heartRate: effectiveHeartRate, onPhaseChange: handleDaePhaseChange, onShockReady: handleDaeShockReady, onElectrodePlacementValidated: electrodeValidation.validateElectrodes, energy: "150", showFCValue: showFCValue, onShowFCValueChange: setShowFCValue, showVitalSigns: showVitalSigns, onShowVitalSignsChange: setShowVitalSigns, showSynchroArrows: defibrillator.isSynchroMode }} />;
       case "Moniteur": return <MonitorDisplay ref={monitorDisplayRef} rhythmType={effectiveRhythm} showSynchroArrows={defibrillator.isSynchroMode} heartRate={effectiveHeartRate} showFCValue={showFCValue} onShowFCValueChange={setShowFCValue} showVitalSigns={showVitalSigns} onShowVitalSignsChange={setShowVitalSigns} />;
       case "Manuel": return <ManuelDisplay ref={manuelDisplayRef} {...{ ...defibrillator, rhythmType: effectiveRhythm, heartRate: effectiveHeartRate, onCancelCharge: defibrillator.cancelCharge, energy: defibrillator.manualEnergy, showFCValue: showFCValue, onShowFCValueChange: setShowFCValue, showVitalSigns: showVitalSigns, onShowVitalSignsChange: setShowVitalSigns, showSynchroArrows: defibrillator.isSynchroMode }} />;
       case "Stimulateur": return (
@@ -288,6 +284,10 @@ const SimulatorPageContent: React.FC = () => {
           isPacing={defibrillator.isPacing}
           onPacerModeChange={defibrillator.setPacerMode}
           onTogglePacing={defibrillator.toggleIsPacing}
+          showFCValue={showFCValue} 
+          onShowFCValueChange={setShowFCValue} 
+          showVitalSigns={showVitalSigns} 
+          onShowVitalSignsChange={setShowVitalSigns}
         />
       );
       default: return <ARRETDisplay />;
@@ -348,7 +348,7 @@ const SimulatorPageContent: React.FC = () => {
           {scenarioPlayer.failureMessage && <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"><div className="bg-red-500 text-white p-8 rounded-lg text-center"><h2 className="text-2xl font-bold">Erreur Critique</h2><p>{scenarioPlayer.failureMessage}</p></div></div>}
         </>
       )}
-      {!showFCValue &&  defibrillator.displayMode != "ARRET" && (
+      {!showFCValue && defibrillator.displayMode != "ARRET" && (
         <div className="absolute top-1/8 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-100 bg-blue-500 text-white text-[11px] px-2 py-1 rounded-lg shadow-lg animate-pulse">
           Cliquez sur les constantes (FC, SpO2, PNI) pour les afficher
         </div>
