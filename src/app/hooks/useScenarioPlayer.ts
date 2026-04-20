@@ -3,6 +3,13 @@ import { DefibrillatorState } from './useDefibrillator';
 import { RhythmType } from '../components/graphsdata/ECGRhythms';
 import { NotificationService } from '../services/NotificationService';
 
+//modifcodeSam
+import { on, off, emit } from "@/lib/eventBus"; 
+//modifcodeSam
+
+
+
+
 // --- Type Definitions for Scenario JSON ---
 
 interface ValidationCondition {
@@ -59,6 +66,34 @@ export const useScenarioPlayer = (
 
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const timeoutCompletedEvent = "timeoutCompleted";
+    
+    
+    //modifcodeSam
+const advanceStep = useCallback(() => {
+  if (!scenarioConfig) return;
+
+  const nextIndex = currentStepIndex + 1;
+
+  if (nextIndex >= scenarioConfig.steps.length) {
+    setIsComplete(true);
+  } else {
+    setCurrentStepIndex(nextIndex);
+  }
+}, [scenarioConfig, currentStepIndex]);
+
+
+useEffect(() => {
+  const handleStepValidated = () => {
+    advanceStep(); // Fonction qui passe à l’étape suivante
+  };
+
+  on("stepValidated", handleStepValidated);
+
+  return () => {
+    off("stepValidated", handleStepValidated); // Nettoyage
+  };
+}, [advanceStep]);
+//ModifcodeSam
 
     // --- Core Validation Logic ---
 

@@ -1,93 +1,111 @@
 import { useState, useEffect, useRef } from 'react';
-import { useAudio } from '../context/AudioContext'; 
+import { useAudio } from '../context/AudioContext';
 import type { RhythmType } from '../components/graphsdata/ECGRhythms';
 
-/**
- * Interface for the state managed by the useAlarms hook.
- */
 interface AlarmState {
-  heartRate: number;
-  isBlinking: boolean;
+  heartRate: number;     // valeur affichable
+  isBlinking: boolean;   // clignote en FV/FA
   showAlarmBanner: boolean;
 }
 
 /**
- * A custom hook to manage alarms, visual indicators, and audio alerts based on the patient's rhythm.
- * @param rhythmType The current ECG rhythm.
- * @param showFCValue A boolean indicating if the heart rate value is currently displayed.
- * @returns The current alarm state.
+ * Hook alarmes synchronisé sur la FC clinique.
+ * - Premier bip immédiat
+ * - Intervalle = 60000 / HR (borné)
+ * - Rythmes d’alarme -> bip alarme
  */
-export const useAlarms = (rhythmType: RhythmType, showFCValue: boolean): AlarmState => {
-  const fvHeartRates = [169, 170, 180, 175, 163, 173, 190];
-  const audioService = useAudio();
+export const useAlarms = (
+  rhythmType: RhythmType,
+  showFCValue: boolean,
+  clinicalHR: number
+): AlarmState => {
+  const audio = useAudio();
 
   const [alarmState, setAlarmState] = useState<AlarmState>({
-    heartRate: 115,
+    heartRate: clinicalHR ?? 60,
     isBlinking: false,
-    showAlarmBanner: false
+    showAlarmBanner: false,
   });
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // timer local si l'AudioService n'a pas startFCBeepSequenceForHR
+  const localBeepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-
-  // Effect to manage vital sign values and visual blinking for alarming rhythms.
+  // Blink visuel pour FV/FA
   useEffect(() => {
-    const isAlarmingRhythm = rhythmType === 'fibrillationVentriculaire' || rhythmType === 'fibrillationAtriale';
+    const isFib = rhythmType === 'fibrillationVentriculaire' || rhythmType === 'fibrillationAtriale';
+    setAlarmState(prev => ({ ...prev, isBlinking: false, showAlarmBanner: isFib }));
 
-    setAlarmState(prev => ({ ...prev, showAlarmBanner: isAlarmingRhythm }));
+    if (!isFib) return;
 
-    if (isAlarmingRhythm) {
-      const blinkInterval = setInterval(() => {
-        setAlarmState(prev => ({ ...prev, isBlinking: !prev.isBlinking }));
-      }, 500);
+    const blink = setInterval(() => {
+      setAlarmState(prev => ({ ...prev, isBlinking: !prev.isBlinking }));
+    }, 500);
 
-      const valueInterval = setInterval(() => {
-        setCurrentIndex(prev => {
-          const nextIndex = (prev + 1) % fvHeartRates.length;
-          setAlarmState(current => ({
-            ...current,
-            heartRate: fvHeartRates[nextIndex]
-          }));
-          return nextIndex;
-        });
-      }, 2000);
-
-      return () => {
-        clearInterval(blinkInterval);
-        clearInterval(valueInterval);
-      };
-    } else {
-      setAlarmState(prev => ({ ...prev, isBlinking: false }));
-    }
+    return () => clearInterval(blink);
   }, [rhythmType]);
 
-  // Effect to manage audio alerts based on rhythm and UI state.
+  // Met à jour la valeur affichée avec la FC clinique
   useEffect(() => {
-   
-    if (!audioService) return;
+    setAlarmState(prev => ({ ...prev, heartRate: Math.max(0, Math.round(clinicalHR || 0)) }));
+  }, [clinicalHR]);
 
-    const isAlarmableRhythm = rhythmType === "fibrillationVentriculaire" ||
-      rhythmType === "fibrillationAtriale" ||
-      rhythmType === "tachycardieVentriculaire" ||
-      rhythmType === "asystole";
+  // Audio : bip FC calé sur la FC clinique vs bip d’alarme
+  useEffect(() => {
+    if (!audio) return;
 
+    const isAlarmableRhythm =
+      rhythmType === 'fibrillationVentriculaire' ||
+      rhythmType === 'fibrillationAtriale' ||
+      rhythmType === 'tachycardieVentriculaire' ||
+      rhythmType === 'asystole';
+
+    const clearLocal = () => {
+      if (localBeepIntervalRef.current) {
+        clearInterval(localBeepIntervalRef.current);
+        localBeepIntervalRef.current = null;
+      }
+    };
+
+    // Stop tout avant de (re)configurer
+    audio.stopFCBeepSequence();
+    audio.stopFVAlarmSequence();
+    clearLocal();
+
+    // Pas d’affichage FC => silence
     if (!showFCValue) {
-      audioService.stopFVAlarmSequence();
-      audioService.stopFCBeepSequence();
-    } else if (isAlarmableRhythm) {
-      audioService.stopFCBeepSequence();
-      audioService.startFVAlarmSequence();
-    } else {
-      audioService.startFCBeepSequence();
-      audioService.stopFVAlarmSequence();
+      return () => {
+        audio.stopFCBeepSequence();
+        audio.stopFVAlarmSequence();
+        clearLocal();
+      };
     }
 
-    // Cleanup audioService on unmount or when dependencies change.
+    // Rythme d’alarme => bip d’alarme
+    if (isAlarmableRhythm) {
+      audio.startFVAlarmSequence();
+      return () => audio.stopFVAlarmSequence();
+    }
+
+    // Sinon : bip FC calé sur HR clinique (premier bip immédiat)
+    const hr = Math.max(30, Math.min(220, clinicalHR || 60));
+    try { audio.playFCBeep(); } catch {}
+
+    // Si AudioService propose une API dédiée, on l'utilise
+    if (typeof (audio as any).startFCBeepSequenceForHR === 'function') {
+      (audio as any).startFCBeepSequenceForHR(hr);
+    } else {
+      // Fallback local
+      const intervalMs = Math.max(350, Math.min(3000, 60000 / hr)); // bornes de sécurité
+      localBeepIntervalRef.current = setInterval(() => {
+        try { audio.playFCBeep(); } catch {}
+      }, intervalMs);
+    }
+
     return () => {
-      audioService.stopFCBeepSequence();
-      audioService.stopFVAlarmSequence();
+      audio.stopFCBeepSequence();
+      clearLocal();
     };
-  }, [showFCValue, rhythmType]);
+  }, [audio, rhythmType, showFCValue, clinicalHR]);
 
   return alarmState;
 };

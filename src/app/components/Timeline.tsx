@@ -20,25 +20,28 @@ const Timeline: React.FC<TimelineProps> = ({
   steps = [
     {
       id: 1,
-      title: "Planification du projet",
-      description: "Scope, besoins médicaux et choix technos définis pour le simulateur",
+      title: "Planification du projet et des fonctionnalités de l'application version 1.0",
+      description: "Interface proche du Phillips DFM 100, fonctionnalités restreintes permettant de répondre aux formations proposées, modèle open source, compatibilités PC/Mac et tablettes",
       status: "completed",
      
     },
     {
       id: 2,
-      title: "Développement du simulateur interactif",
-      description: "Implémentation des fonctionnalités clés du simulateur et des scénarios interactifs",
+      title: "Développement du simulateur",
+      description: "Implémentation de 4 scénarios d'auto formation, 1 scénario permettant de réaliser une simulation en équipe de courte durée sur le theme de l'ACR sans interaction avec un mannequin de simulation",
       status: "completed",
     
     },
     {
       id: 3,
-      title: "Intégration en conditions réelles de simulation",
+      title: "Completer les fonctionnalités de l'application et intégrer cet outil aux séances de simulation en santé",
       description: [
-        "Connexion à un mannequin générant ou non le signal en temps réel",
-        "Scénario double défibrillation",
-        "Ouverture à une plateforme de simulation globale avec d'autres outils : lecteur glycémie, HemoCue, appareil ECG, respirateur..."
+        "Création d'une interface physique permettant de connecter l'application à un mannequin de simulation ",
+        "Création en impression 3D d'un boitier proche du DFM100 pour l'utiliser lors des séances de simulation",
+        "Completer les fonctionnalités manquantes du DFM100, proposer d'autres interfaces (Corpuls, Zoll ...)", 
+        "Développer de nouveaux scénarios (double défibrillation)",
+        "Création d'une commande permettant la modification à distance des parametres vitaux et des tracés ECG",
+        "Développement d'une plateforme de simulation globale open source avec d'autres simulateurs (appareil ECG, respirateur...)"
       ],
       status: "upcoming",
 
@@ -132,7 +135,7 @@ const Timeline: React.FC<TimelineProps> = ({
   return (
     <div className="w-full max-w-2xl mx-auto p-6 mt-25 mb-15">
       <div className="relative">
-        <h2 className="text-3xl font-bold text-white text-center mb-15">What's Next ?</h2>
+        <h2 className="text-3xl font-bold text-white text-center mb-15">Etat de l'avancement du projet et développements a venir</h2>
         {/* Vertical connection line */}
         <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-border">
           <div 

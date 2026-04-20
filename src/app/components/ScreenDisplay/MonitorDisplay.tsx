@@ -13,6 +13,10 @@ import { usePlethAnimation } from "../../hooks/usePlethAnimation";
 import VitalsDisplay from "../VitalsDisplay";
 
 interface MonitorDisplayProps {
+  //ModifCodeSam
+    bloodPressure?: { systolic: number; diastolic: number; map?: number };
+   isScenario4?: boolean;
+    //ModifCodeSam
   rhythmType?: RhythmType;
   showSynchroArrows?: boolean;
   heartRate?: number;
@@ -55,6 +59,11 @@ const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
       onShowFCValueChange,
       onShowVitalSignsChange,
       timerProps,
+      //ModifCodeSam
+      bloodPressure,
+       isScenario4,
+      //ModifCodeSam
+      
     },
     ref,
   ) => {
@@ -444,6 +453,10 @@ const MonitorDisplay = forwardRef<MonitorDisplayRef, MonitorDisplayProps>(
 
           {/* Rangée 2 - Paramètres médicaux */}
           <VitalsDisplay
+          //ModifCodeSam
+          bloodPressure={bloodPressure} 
+          isScenario4={isScenario4}
+          //ModifCodeSam
             rhythmType={rhythmType}
             heartRate={heartRate}
             showFCValue={showFCValue}

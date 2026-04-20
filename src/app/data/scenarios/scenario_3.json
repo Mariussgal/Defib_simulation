@@ -1,10 +1,14 @@
 {
     "id": "scenario_3",
-    "title": "Electro Entrainement",
+    "title": "Entrainement electrosystolique",
     "description": "Un patient de 62 ans en arrêt cardio-respiratoire. Le massage cardiaque externe est en cours. Utilisez le défibrillateur en mode manuel pour délivrer un choc de 150 Joules.",
     "initialState": {
         "rhythmType": "bav3",
-        "heartRate": 28
+        "heartRate": 28,
+        "bloodPressure": {
+    "systolic": 83,
+    "diastolic": 54
+  }
     },
     "steps": [
         {
@@ -39,7 +43,7 @@
             }
         },
         {
-            "step": 3,
+            "step": 2,
             "description": "Règlez la fréquence de stimulation à 60",
             "validation": {
                 "all_of": [
@@ -116,11 +120,25 @@
                     {
                         "type": "stateChange",
                         "property": "pacerIntensity",
-                        "value": 90
+                            "operator": ">=",
+    "value": 90
                     }
 
                 ]
-            }
+            },
+            "onComplete": [
+    {
+      "action": "updateState",
+      "payload": {
+        "heartRate": 60,
+        "bloodPressure": {
+          "systolic": 116,
+          "diastolic": 73
+          
+        }
+      }
+    }
+  ]
         }
         
     ]

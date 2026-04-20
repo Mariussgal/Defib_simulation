@@ -1,3 +1,4 @@
+//DAEDisplay.tsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import ECGDisplay from "../graphsdata/ECGDisplay";
 import TimerDisplay from "../TimerDisplay";
@@ -5,7 +6,14 @@ import { useAudio } from '../../context/AudioContext';
 import type { RhythmType } from "../graphsdata/ECGRhythms";
 import VitalsDisplay from "../VitalsDisplay";
 
+//ModifcodeSam
+import { emit } from "@/lib/eventBus";
+//ModifcodeSam
+
 interface DAEDisplayProps {
+  //ModifCodeSam
+  isScenario4?: boolean;
+  //ModifCodeSam
   energy: string;
   chargeProgress: number;
   shockCount: number;
@@ -28,6 +36,13 @@ interface DAEDisplayProps {
     seconds: number;
     totalSeconds: number;
   };
+  //ModifCodeSam
+    bloodPressure?: {
+    systolic: number;
+    diastolic: number;
+    map?: number;
+  };
+  //ModifCodeSam
 }
 
 type Phase =
@@ -50,6 +65,10 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
   showSynchroArrows = false,
   heartRate = 70,
   isCharged = false,
+  //ModifCodeSam
+  bloodPressure,
+  isScenario4,
+  //ModifCodeSam
   deliverShock,
   startCharging,
   onPhaseChange,
@@ -94,94 +113,108 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
     }
   }, [isCharged, phase]);
 
+//ModifCodeSam
+
   useEffect(() => {
-    if (onPhaseChange) {
-      onPhaseChange(phase);
-    }
+  if (onPhaseChange) {
+    onPhaseChange(phase);
+    console.log("PHASE ACTUELLE:", phase);
+  }
 
-    let interval: NodeJS.Timeout | undefined;
-    let timers: NodeJS.Timeout[] = [];
-    audioService.clearRepetition();
+  let interval: NodeJS.Timeout | undefined;
+  let timers: NodeJS.Timeout[] = [];
+  audioService.clearRepetition();
 
-
-    switch (phase) {
-      case "placement":
-        audioService.playDAEModeAdulte();
+  switch (phase) {
+    case "placement":
+      audioService.playDAEModeAdulte();
+      timers.push(setTimeout(() => {
+        audioService.playDAEInstructions();
         timers.push(setTimeout(() => {
-          audioService.playDAEInstructions();
-          timers.push(setTimeout(() => audioService.playDAEElectrodeReminder(), 3000));
-        }, 1000));
-        break;
+          audioService.playDAEElectrodeReminder();
+        }, 3500));
+      }, 1000));
+      break;
 
-      case "preparation":
-        setElapsedTime(120);
-        interval = setInterval(() => {
+    case "analyse":
+      audioService.playDAEEcartezVousduPatient();
+      timers.push(setTimeout(() => {
+        audioService.playDAEAnalyse();
+        // ⬇️ Délai total pour analyse + audio
+        timers.push(setTimeout(() => {
+          const isRhythmShockable = shockableRhythms.includes(rhythmType);
+          setPhase(isRhythmShockable ? "pre-charge" : "pas_de_choc");
+        }, 8000)); // 8s pour l’analyse
+      }, 3000)); // 3s après "écartez-vous"
+      break;
 
-          setElapsedTime(prev => {
+    case "pre-charge":
+      audioService.playDAEChocRecommande();
+      timers.push(setTimeout(() => {
+        setPhase("charge");
+      }, 2500)); // laisse parler
+      break;
 
-            if (prev <= 1) {
-              setPhase("analyse");
-              return 0;
-            }
-            setProgressBarPercent(100 - 100 * (prev - 1) / 120);
-            return prev - 1;
-          });
+    case "charge":
+      audioService.playDAEEcartezVous();
+      timers.push(setTimeout(() => {
+        startCharging();
+      }, 2500)); // assez pour "écartez-vous"
+      break;
 
-        }, 1000);
-        break;
+    case "attente_choc":
+      audioService.playDAEChoc();
+      timers.push(setTimeout(() => {
+        audioService.playDAEboutonOrange();
+      }, 2500));
+      break;
 
-      case "analyse":
-        audioService.playDAEEcartezVousduPatient();
-        timers.push(setTimeout(() => audioService.playDAEAnalyse(), 3000));
-        const analysisDuration = 8 * 1000;
-        interval = setInterval(() => {
-            const isRhythmShockable = shockableRhythms.includes(rhythmType);
-            setPhase(isRhythmShockable ? "pre-charge" : "pas_de_choc");
+    case "choc":
+      timers.push(setTimeout(() => {
+        setPhase("preparation");
+      }, 1500)); // laisse le son du choc se terminer
+      break;
 
-        }, analysisDuration);
-        break;
+    case "pas_de_choc":
+      audioService.playPasDeChocIndique();
+      timers.push(setTimeout(() => {
+        audioService.playCommencerRCP();
+      }, 2500));
+      timers.push(setTimeout(() => {
+        setPhase("preparation");
+      }, 5000)); // assez long pour entendre tout
+      break;
 
-      case "pre-charge":
-        audioService.playDAEChocRecommande();
-        timers.push(setTimeout(() => setPhase("charge"), 2000));
-        break;
+    case "preparation":
+      setElapsedTime(120);
+      interval = setInterval(() => {
+        setElapsedTime(prev => {
+          if (prev <= 1) {
+            setPhase("analyse");
+            return 0;
+          }
+          setProgressBarPercent(100 - 100 * (prev - 1) / 120);
+          return prev - 1;
+        });
+      }, 1000);
+      break;
+  }
 
-      case "charge":
-        audioService.playDAEEcartezVous();
-        timers.push(setTimeout(() => startCharging(), 2000));
-        break;
+  return () => {
+    if (interval) clearInterval(interval);
+    timers.forEach(clearTimeout);
+  };
+}, [phase, rhythmType, startCharging, audioService, onPhaseChange]);
 
-      case "attente_choc":
-
-        audioService.playDAEChoc();
-
-        timers.push(setTimeout(() => audioService.playDAEboutonOrange(), 2000));
-
-        break;
-
-      case "choc":
-        timers.push(setTimeout(() => setPhase("preparation"), 1000));
-        break;
-
-      case "pas_de_choc":
-        audioService.playPasDeChocIndique();
-        timers.push(setTimeout(() => audioService.playCommencerRCP(), 2000));
-
-        timers.push(setTimeout(() => setPhase("preparation"), 2000));
-        break;
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-      timers.forEach(clearTimeout);
-    };
-  }, [phase, rhythmType, startCharging, audioService, onPhaseChange]);
-
+//ModifCodeSam
 
   const handlePlacementValidate = () => {
     if (phase === "placement") {
       setPhase("analyse");
       onElectrodePlacementValidated?.();
+      //ModifcodeSam
+      emit("stepValidated"); 
+       //ModifcodeSam
     }
   };
 
@@ -206,10 +239,13 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
                   alt="Placement des électrodes"
                   className="max-w-md h-auto"
                 />
-              </div>
-              <button
-                onClick={handlePlacementValidate}
-                className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-5 rounded-lg text-xl transition-colors duration-200 mb-7"
+              </div>        
+<button
+//ModifcodeSam
+  onClick={handlePlacementValidate}
+  className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-5 rounded-lg text-xl transition-colors duration-200 mb-7"
+  //ModifcodeSam
+              
               >
                 Valider
               </button>
@@ -241,6 +277,10 @@ const DAEDisplay: React.FC<DAEDisplayProps> = ({
 
             {/* Vitals */}
             <VitalsDisplay
+            //ModifCodeSam
+            bloodPressure={bloodPressure}
+            isScenario4={isScenario4}
+             //ModifCodeSam
               rhythmType={rhythmType}
               heartRate={heartRate}
               showFCValue={showFCValue}

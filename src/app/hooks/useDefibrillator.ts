@@ -8,6 +8,12 @@ export type PacerMode = "Fixe" | "Sentinelle";
 
 export interface DefibrillatorState {
   // Display
+  //ModifCodeSam
+    bloodPressure?: {
+    systolic: number;
+    diastolic: number;
+  };
+  //ModifCodeSam
   displayMode: DisplayMode;
   manualEnergy: string;
   rhythmType: RhythmType;

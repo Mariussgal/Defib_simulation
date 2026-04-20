@@ -38,9 +38,12 @@ const ScenarioModal: React.FC<ScenarioModalProps> = ({
 
         <div className="space-y-4 text-gray-300 overflow-y-auto flex-1 pr-2">
           <div>
-            <p className="text-sm mb-3 text-justify">{scenario.description}</p>
-
-           
+            <p
+  className="text-sm mb-3 text-justify"
+  style={{ whiteSpace: 'pre-line' }}
+>
+  {scenario.description}
+</p>
           </div>
 
           <div>

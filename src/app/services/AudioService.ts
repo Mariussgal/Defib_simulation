@@ -1,3 +1,4 @@
+// AudioService.ts
 interface AudioSettings {
   enabled: boolean;
   volume: number;
@@ -9,7 +10,14 @@ interface ClickSoundConfig {
   volume: number;
 }
 
+type OperatingMode = 'ARRET' | 'DAE' | 'Moniteur' | 'Manuel' | 'Stimulateur' | string;
+
 class AudioService {
+  // ===== Nouveautés pour le bip machine =====
+  private machineBeepTimer: NodeJS.Timeout | null = null;
+  private currentMode: OperatingMode = 'ARRET';
+
+  // ===== Déjà existant =====
   private synthesis: SpeechSynthesis | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private settings: AudioSettings = {
@@ -23,16 +31,15 @@ class AudioService {
   private fvAlarmTimer: NodeJS.Timeout | null = null;
   private alarmOscillator: OscillatorNode | null = null;
 
-  // Legacy audio elements for cleanup (even though not actively used for playback)
+  // Legacy audio
   private chargingSound: HTMLAudioElement | null = null;
   private alarmSound: HTMLAudioElement | null = null;
 
-  // Simplified click sound management
+  // Click sounds
   private clickSounds: Map<string, HTMLAudioElement[]> = new Map();
   private clickSoundIndex = 0;
   private readonly CLICK_SOUND_POOL_SIZE = 3;
 
-  // Click sound configurations
   private readonly clickSoundConfigs: Record<string, ClickSoundConfig> = {
     soft: { src: '/sounds/click-soft.wav', volume: 0.3 },
     normal: { src: '/sounds/click-normal.wav', volume: 0.5 },
@@ -40,48 +47,22 @@ class AudioService {
   };
 
   constructor() {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
+    if (typeof window === 'undefined') return;
     this.synthesis = window.speechSynthesis;
     this.initializeClickSounds();
 
-    // Initialize legacy audio elements (for cleanup compatibility)
     this.chargingSound = new Audio();
     this.alarmSound = new Audio();
   }
 
-  /**
-   * Initialize click sound pools for each type
-   */
-  private initializeClickSounds(): void {
-    Object.entries(this.clickSoundConfigs).forEach(([type, config]) => {
-      const audioPool: HTMLAudioElement[] = [];
-
-      for (let i = 0; i < this.CLICK_SOUND_POOL_SIZE; i++) {
-        const audio = new Audio(config.src);
-        audio.preload = 'auto';
-        audio.volume = config.volume * this.settings.volume;
-        audioPool.push(audio);
-      }
-
-      this.clickSounds.set(type, audioPool);
-    });
-  }
-
-  /**
-   * Get shared AudioContext (reuse existing one)
-   */
+  // ===== Shared AudioContext =====
   public getAudioContext(): AudioContext {
     if (!this.audioContext || this.audioContext.state === 'closed') {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
-
     if (this.audioContext.state === 'suspended') {
       this.audioContext.resume().catch(console.error);
     }
-
     return this.audioContext;
   }
 
@@ -89,17 +70,9 @@ class AudioService {
     return this.getAudioContext().state === 'suspended';
   }
 
-  /**
-   * Resumes the AudioContext if it is in a suspended state.
-   * This must be called as a result of a user interaction (e.g., a click).
-   */
   public resume(): Promise<void> {
     return this.getAudioContext().resume();
   }
-
-  /**
-   * Update audio settings
-   */
 
   public getSettings(): AudioSettings {
     return this.settings;
@@ -108,246 +81,90 @@ class AudioService {
   updateSettings(settings: Partial<AudioSettings>): void {
     this.settings = { ...this.settings, ...settings };
 
-
-    // Update click sound volumes
-    this.clickSounds.forEach((audioPool, type) => {
-      const config = this.clickSoundConfigs[type];
-      if (config) {
-        audioPool.forEach(audio => {
-          audio.volume = config.volume * this.settings.volume;
-        });
-      }
+    // MàJ volume des clics
+    this.clickSounds.forEach((pool, type) => {
+      const cfg = this.clickSoundConfigs[type];
+      if (cfg) pool.forEach(a => (a.volume = cfg.volume * this.settings.volume));
     });
-  }
 
-  /**
-   * Play click sound using wav files
-   */
-  playClickSound(type: 'soft' | 'normal' | 'sharp' = 'normal'): void {
+    // Si on coupe le son globalement : on arrête tout (dont le bip machine)
     if (!this.settings.enabled) {
-      return;
-    }
-
-    const audioPool = this.clickSounds.get(type);
-    if (!audioPool || audioPool.length === 0) {
-      console.warn(`No audio pool found for click sound type: ${type}`);
-      return;
-    }
-
-    try {
-      // Use round-robin to handle rapid clicks
-      const audio = audioPool[this.clickSoundIndex % audioPool.length];
-      audio.currentTime = 0;
-
-      audio.play().catch(error => {
-        console.error(`Error playing ${type} click sound:`, error);
-      });
-
-      this.clickSoundIndex++;
-    } catch (error) {
-      console.error(`Error with ${type} click sound:`, error);
+      this.stopAll();
+    } else {
+      this.updateMachineBeepState(); // relance si éligible
     }
   }
 
-  /**
-   * Preload all click sounds
-   */
-  async preloadClickSounds(): Promise<void> {
-    const loadPromises: Promise<void>[] = [];
+  // ===== Click sounds =====
+  private initializeClickSounds(): void {
+    Object.entries(this.clickSoundConfigs).forEach(([type, cfg]) => {
+      const pool: HTMLAudioElement[] = [];
+      for (let i = 0; i < this.CLICK_SOUND_POOL_SIZE; i++) {
+        const a = new Audio(cfg.src);
+        a.preload = 'auto';
+        a.volume = cfg.volume * this.settings.volume;
+        pool.push(a);
+      }
+      this.clickSounds.set(type, pool);
+    });
+  }
 
-    this.clickSounds.forEach((audioPool, type) => {
-      audioPool.forEach(audio => {
-        loadPromises.push(
-          new Promise<void>((resolve, reject) => {
-            audio.addEventListener('canplaythrough', () => resolve(), { once: true });
-            audio.addEventListener('error', reject, { once: true });
-            audio.load();
-          })
-        );
+  playClickSound(type: 'soft' | 'normal' | 'sharp' = 'normal'): void {
+    if (!this.settings.enabled) return;
+    const pool = this.clickSounds.get(type);
+    if (!pool || !pool.length) return;
+
+    const audio = pool[this.clickSoundIndex % pool.length];
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+    this.clickSoundIndex++;
+  }
+
+  async preloadClickSounds(): Promise<void> {
+    const loads: Promise<void>[] = [];
+    this.clickSounds.forEach(pool => {
+      pool.forEach(a => {
+        loads.push(new Promise<void>((res, rej) => {
+          a.addEventListener('canplaythrough', () => res(), { once: true });
+          a.addEventListener('error', rej, { once: true });
+          a.load();
+        }));
       });
     });
-
-    try {
-      await Promise.all(loadPromises);
-      console.log('All click sounds preloaded successfully');
-    } catch (error) {
-      console.error('Error preloading click sounds:', error);
-    }
+    try { await Promise.all(loads); } catch {}
   }
 
-  /**
-   * Play text-to-speech message
-   */
-  playMessage(text: string, options?: { priority?: boolean; repeat?: boolean; repeatInterval?: number }): void {
-    if (!this.settings.enabled || !this.synthesis) {
-      return;
-    }
+  // ===== TTS =====
+  playMessage(
+    text: string,
+    options?: { priority?: boolean; repeat?: boolean; repeatInterval?: number }
+  ): void {
+    if (!this.settings.enabled || !this.synthesis) return;
 
-    // If priority, stop current message
     if (options?.priority && this.currentUtterance) {
       this.synthesis.cancel();
       this.clearRepetition();
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = this.settings.language;
-    utterance.volume = this.settings.volume;
-    utterance.rate = 0.9;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = this.settings.language;
+    u.volume = this.settings.volume;
+    u.rate = 0.9;
 
-    utterance.onend = () => {
+    u.onend = () => {
       this.currentUtterance = null;
-
-      if (options?.repeat && options?.repeatInterval) {
-        this.repetitionTimer = setTimeout(() => {
-          this.playMessage(text, options);
-        }, options.repeatInterval);
+      if (options?.repeat && options.repeatInterval) {
+        this.repetitionTimer = setTimeout(
+          () => this.playMessage(text, options),
+          options.repeatInterval
+        );
       }
     };
 
-    this.currentUtterance = utterance;
-    this.synthesis.speak(utterance);
+    this.currentUtterance = u;
+    this.synthesis.speak(u);
   }
 
-  // DAE-specific messages
-  playDAEModeAdulte(): void {
-    this.playMessage("Mode adulte", { priority: true });
-  }
-
-  playDAEInstructions(): void {
-    const message = "Insérez fermement le connecteur et appliquez les électrodes";
-    this.playMessage(message, { priority: true });
-  }
-
-  playDAEElectrodeReminder(): void {
-    const message = "Appliquez les électrodes";
-    this.playMessage(message, {
-      repeat: true,
-      repeatInterval: 10000
-    });
-  }
-
-  playDAEAnalyse(): void {
-    this.playMessage("Analyse en cours", { priority: true });
-  }
-
-  playDAEChocRecommande(): void {
-    this.playMessage("Choc recommandé", { priority: true });
-  }
-
-  playDAEEcartezVousduPatient(): void {
-    this.playMessage("Écartez-vous du patient", { priority: true });
-  }
-
-  playDAEEcartezVous(): void {
-    this.playMessage("Écartez-vous", { priority: true });
-  }
-
-  playPasDeChocIndique(): void {
-    this.playMessage("Pas de choc indiqué", { priority: true });
-  }
-
-  playCommencerRCP(): void {
-    this.playMessage("Commencer la réanimation cardio pulmonaire", { priority: true });
-  }
-
-  playDAEChoc(): void {
-    this.playMessage("délivrer le choc maintenant", { priority: true });
-  }
-
-  playDAEboutonOrange(): void {
-    this.playMessage("appuyez sur le bouton orange maintenant", { priority: true });
-  }
-
-  playDAEChocDelivre(): void {
-    this.playMessage("choc délivré", { priority: true });
-  }
-
-  /**
-   * Play charging sequence with synthetic audio
-   */
-  playChargingSequence(): void {
-    this.stopAll();
-    if (!this.settings.enabled) return;
-
-    const audioContext = this.getAudioContext();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-    oscillator.frequency.linearRampToValueAtTime(880, audioContext.currentTime + 5);
-
-    gainNode.gain.setValueAtTime(0.1 * this.settings.volume, audioContext.currentTime);
-
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 5);
-
-    // After 5 seconds, play alarm and voice messages
-    setTimeout(() => {
-      // Stop any existing alarm oscillator
-      this.stopAlarmOscillator();
-
-      this.alarmOscillator = audioContext.createOscillator();
-      const alarmGain = audioContext.createGain();
-
-      this.alarmOscillator.type = 'square';
-      this.alarmOscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
-
-      alarmGain.gain.setValueAtTime(0.05 * this.settings.volume, audioContext.currentTime);
-
-      this.alarmOscillator.connect(alarmGain);
-      alarmGain.connect(audioContext.destination);
-
-      this.alarmOscillator.start();
-
-      // Clean up oscillator reference when it ends
-      this.alarmOscillator.onended = () => {
-        this.alarmOscillator = null;
-      };
-
-      this.playDAEChoc();
-      setTimeout(() => {
-        this.playDAEboutonOrange();
-      }, 2000);
-    }, 5000);
-  }
-
-  /**
-   * Stop all audio
-   */
-  stopAll(): void {
-    if (this.synthesis) this.synthesis.cancel();
-    this.clearRepetition();
-    this.currentUtterance = null;
-
-    // FIX: Check if the sound is not paused before trying to pause it.
-    // This prevents the "interrupted by a call to pause()" error.
-    if (this.chargingSound && !this.chargingSound.paused) {
-      this.chargingSound.pause();
-      this.chargingSound.currentTime = 0;
-    }
-
-    if (this.alarmSound && !this.alarmSound.paused) {
-      this.alarmSound.pause();
-      this.alarmSound.currentTime = 0;
-    }
-
-    if (this.alarmOscillator) {
-      this.alarmOscillator.stop();
-      this.alarmOscillator = null;
-    }
-    this.stopFCBeepSequence();
-    this.stopFVAlarmSequence();
-  }
-
-
-  /**
-   * Clear repetition timer
-   */
   clearRepetition(): void {
     if (this.repetitionTimer) {
       clearTimeout(this.repetitionTimer);
@@ -355,56 +172,94 @@ class AudioService {
     }
   }
 
-  /**
-   * Check if currently speaking
-   */
   isSpeaking(): boolean {
-    return this.synthesis ? this.synthesis.speaking : false || this.currentUtterance !== null;
+    return (this.synthesis ? this.synthesis.speaking : false) || this.currentUtterance !== null;
   }
 
-  /**
-   * Play FC beep sound
-   */
-  playFCBeep(): void {
-    if (!this.settings.enabled) {
-      return;
-    }
+  // ===== DAE phrases =====
+  playDAEModeAdulte() { this.playMessage('Mode adulte', { priority: true }); }
+  playDAEInstructions() { this.playMessage("Insérez fermement le connecteur et appliquez les électrodes", { priority: true }); }
+  playDAEElectrodeReminder() { this.playMessage('Appliquez les électrodes', { repeat: true, repeatInterval: 10000 }); }
+  playDAEAnalyse() { this.playMessage('Analyse en cours', { priority: true }); }
+  playDAEChocRecommande() { this.playMessage('Choc recommandé', { priority: true }); }
+  playDAEEcartezVousduPatient() { this.playMessage('Écartez-vous du patient', { priority: true }); }
+  playDAEEcartezVous() { this.playMessage('Écartez-vous', { priority: true }); }
+  playPasDeChocIndique() { this.playMessage('Pas de choc indiqué', { priority: true }); }
+  playCommencerRCP() { this.playMessage('Commencer la réanimation cardio pulmonaire', { priority: true }); }
+  playDAEChoc() { this.playMessage('délivrer le choc maintenant', { priority: true }); }
+  playDAEboutonOrange() { this.playMessage('appuyez sur le bouton orange maintenant', { priority: true }); }
+  playDAEChocDelivre() { this.playMessage('choc délivré', { priority: true }); }
 
-    try {
-      const audioContext = this.getAudioContext();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+  // ===== Séquence de charge (existant) =====
+  playChargingSequence(): void {
+    this.stopAll();
+    if (!this.settings.enabled) return;
 
-      oscillator.type = 'square';
-      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+    const ctx = this.getAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const now = ctx.currentTime;
 
-      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.8 * this.settings.volume, audioContext.currentTime + 0.005);
-      gainNode.gain.exponentialRampToValueAtTime(0.001 * this.settings.volume, audioContext.currentTime + 0.08);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1000, now);
+    gain.gain.setValueAtTime(0.1 * this.settings.volume, now);
 
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 5);
 
-      oscillator.start();
-      oscillator.stop(audioContext.currentTime + 0.1);
-    } catch (error) {
-      console.error('Error playing FC beep:', error);
-    }
+    setTimeout(() => {
+      this.stopAlarmOscillator();
+      this.alarmOscillator = ctx.createOscillator();
+      const alarmGain = ctx.createGain();
+
+      this.alarmOscillator.type = 'square';
+      this.alarmOscillator.frequency.setValueAtTime(2000, ctx.currentTime);
+      alarmGain.gain.setValueAtTime(0.05 * this.settings.volume, ctx.currentTime);
+
+      this.alarmOscillator.connect(alarmGain).connect(ctx.destination);
+      this.alarmOscillator.start();
+
+      this.alarmOscillator.onended = () => { this.alarmOscillator = null; };
+
+      this.playDAEChoc();
+      setTimeout(() => this.playDAEboutonOrange(), 2000);
+    }, 5000);
   }
 
-  /**
-   * Start FC beep sequence
-   */
+ // ===== Bips de FC (style moniteur Efficia-like) =====
+playFCBeep(): void {
+  if (!this.settings.enabled) return;
+  try {
+    const ctx = this.getAudioContext();
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    // Timbre modifié doux
+  osc.type = 'sine';
+      osc.frequency.setValueAtTime(470, now); // ajuste si besoin
+
+      const peak = 0.6 * this.settings.volume;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(peak, now + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.1);
+  } catch {}
+}
+
+
   startFCBeepSequence(): void {
     this.stopFCBeepSequence();
-    this.fcBeepTimer = setInterval(() => {
-      this.playFCBeep();
-    }, 2000);
+    this.playFCBeep();
+    this.fcBeepTimer = setInterval(() => this.playFCBeep(), 2000);
   }
 
-  /**
-   * Stop FC beep sequence
-   */
   stopFCBeepSequence(): void {
     if (this.fcBeepTimer) {
       clearInterval(this.fcBeepTimer);
@@ -412,90 +267,155 @@ class AudioService {
     }
   }
 
-  /**
-   * Play FV alarm beep
-   */
+  // ===== Bip ALARME (existant) =====
   playFVAlarmBeep(): void {
-    if (!this.settings.enabled) {
-      return;
-    }
-
+    if (!this.settings.enabled) return;
     try {
-      const audioContext = this.getAudioContext();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+      const ctx = this.getAudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const now = ctx.currentTime;
 
-      oscillator.type = 'sawtooth';
-      oscillator.frequency.setValueAtTime(1600, audioContext.currentTime);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(1600, now);
 
-      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-      gainNode.gain.linearRampToValueAtTime(1.5 * this.settings.volume, audioContext.currentTime + 0.005);
-      gainNode.gain.exponentialRampToValueAtTime(0.1 * this.settings.volume, audioContext.currentTime + 0.3);
-      gainNode.gain.exponentialRampToValueAtTime(0.001 * this.settings.volume, audioContext.currentTime + 0.5);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(1.5 * this.settings.volume, now + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.1 * this.settings.volume, now + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.001 * this.settings.volume, now + 0.5);
 
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.start();
-      oscillator.stop(audioContext.currentTime + 0.5);
-    } catch (error) {
-      console.error('Error playing FV alarm beep:', error);
-    }
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.5);
+    } catch {}
   }
 
-  /**
-   * Start FV alarm sequence
-   */
   startFVAlarmSequence(): void {
     this.stopFVAlarmSequence();
-    this.fvAlarmTimer = setInterval(() => {
-      this.playFVAlarmBeep();
-    }, 1000);
+    this.fvAlarmTimer = setInterval(() => this.playFVAlarmBeep(), 1000);
+    this.updateMachineBeepState(); // ⛔️ stoppe le bip machine pendant l’alarme
   }
 
-  /**
-   * Stop alarm oscillator
-   */
-  private stopAlarmOscillator(): void {
-    if (this.alarmOscillator) {
-      try {
-        this.alarmOscillator.stop();
-      } catch (error) {
-        // Oscillator might already be stopped
-        console.warn('Alarm oscillator already stopped:', error);
-      }
-      this.alarmOscillator = null;
-    }
-  }
-
-  /**
-   * Stop legacy alarm sound (for cleanup compatibility)
-   */
-  private stopAlarmSound(): void {
-    if (this.alarmSound) {
-      this.alarmSound.pause();
-      this.alarmSound.currentTime = 0;
-    }
-  }
-
-  /**
-   * Stop legacy charging sound (for cleanup compatibility)
-   */
-  private stopChargingSound(): void {
-    if (this.chargingSound) {
-      this.chargingSound.pause();
-      this.chargingSound.currentTime = 0;
-    }
-  }
-
-  /**
-   * Stop FV alarm sequence
-   */
   stopFVAlarmSequence(): void {
     if (this.fvAlarmTimer) {
       clearInterval(this.fvAlarmTimer);
       this.fvAlarmTimer = null;
     }
+    this.updateMachineBeepState(); // ✅ peut relancer le bip machine
+  }
+
+  private stopAlarmOscillator(): void {
+    if (this.alarmOscillator) {
+      try { this.alarmOscillator.stop(); } catch {}
+      this.alarmOscillator = null;
+    }
+  }
+
+  // ======= NOUVEAU : BIP MACHINE RÉGULIER =======
+  /**
+   * À appeler quand le mode change (ARRET/DAE/Moniteur/Manuel/Stimulateur…)
+   */
+  public updateOperatingMode(mode: OperatingMode): void {
+    this.currentMode = mode;
+    this.updateMachineBeepState();
+  }
+
+  /**
+   * Conditions d’activation du bip machine :
+   * - audio activé
+   * - PAS en alarme (fvAlarmTimer actif ? alors off)
+   * - PAS en mode DAE
+   * - PAS en mode ARRET
+   */
+  private shouldMachineBeep(): boolean {
+    if (!this.settings.enabled) return false;
+    if (this.isAlarmActive()) return false;
+    const m = (this.currentMode || '').toUpperCase();
+    if (m === 'DAE' || m === 'ARRET') return false;
+    return false; // SamModif en attendant de configurer ce bip machine lorsqu'il n'y a pas de rytme affiché
+  }
+
+  private isAlarmActive(): boolean {
+    return this.fvAlarmTimer != null;
+    // (si tu veux aussi couper pendant certaines annonces TTS, tu peux ajouter: || this.isSpeaking())
+  }
+
+  private updateMachineBeepState(): void {
+    if (this.shouldMachineBeep()) {
+      this.startMachineBeep();
+    } else {
+      this.stopMachineBeep();
+    }
+  }
+
+  private playMachineBeep(): void {
+    // Bip doux / plus grave que FC
+    if (!this.settings.enabled) return;
+    try {
+      const ctx = this.getAudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const now = ctx.currentTime;
+
+      // Timbre plus rond 
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(470, now); 
+      const peak = 0.6 * this.settings.volume;
+
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(peak, now + 0.04);         // attaque douce ~20ms
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);   // extinction ~120ms
+
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.14);
+    } catch {}
+  }
+
+  private startMachineBeep(): void {
+    if (this.machineBeepTimer) return;
+    // première impulsion immédiate, puis toutes les secondes
+    this.playMachineBeep();
+    this.machineBeepTimer = setInterval(() => {
+      // si une alarme démarre entre-temps, on stoppe
+      if (!this.shouldMachineBeep()) {
+        this.stopMachineBeep();
+        return;
+      }
+      this.playMachineBeep();
+    }, 2000);
+  }
+
+  private stopMachineBeep(): void {
+    if (this.machineBeepTimer) {
+      clearInterval(this.machineBeepTimer);
+      this.machineBeepTimer = null;
+    }
+  }
+
+  // ===== Stop global =====
+  stopAll(): void {
+    if (this.synthesis) this.synthesis.cancel();
+    this.clearRepetition();
+    this.currentUtterance = null;
+
+    if (this.chargingSound && !this.chargingSound.paused) {
+      this.chargingSound.pause();
+      this.chargingSound.currentTime = 0;
+    }
+    if (this.alarmSound && !this.alarmSound.paused) {
+      this.alarmSound.pause();
+      this.alarmSound.currentTime = 0;
+    }
+
+    if (this.alarmOscillator) {
+      try { this.alarmOscillator.stop(); } catch {}
+      this.alarmOscillator = null;
+    }
+
+    this.stopFCBeepSequence();
+    this.stopFVAlarmSequence();
+    this.stopMachineBeep(); // ✅ coupe aussi le bip machine
   }
 }
 

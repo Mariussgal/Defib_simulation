@@ -1,10 +1,11 @@
 {
-    "id": "scenario_1",
-    "title": "Fibrillation Ventriculaire (Mode Manuel)",
+    "id": "scenario_4",
+    "title": "Cardioversion",
     "description": "Monsieur L. âgé de 80 ans, aux antécédents d'hypertension et d'embolie pulmonaire anticoagulée au long cours, est pris en charge pour des palpitations depuis 6h. L'ECG montre une ACFA à 160/min, le traitement médicamenteux est un échec et le patient présente une syncope associée à une hypotension artérielle.",
     "initialState": {
         "rhythmType": "fibrillationAtriale",
-        "heartRate": 160
+        "heartRate": 200,
+         "bloodPressure": { "systolic": 78, "diastolic": 57, "map": 64.0 }
     },
     "steps": [
         {
@@ -36,7 +37,7 @@
         },
         {
             "step": 2,
-            "description": "Sélectionnez une énergie appropriée (ex: 100-150 joules)",
+            "description": "Sélectionnez une énergie appropriée de 150 joules",
             "validation": {
                 "all_of": [
                     {
@@ -71,7 +72,7 @@
         },
         {
             "step": 4,
-            "description": "Pressez le bouton orange marqué 'Choc' pour délivrer l'énergie.",
+            "description": "Appuyez et maintenez le bouton orange marqué 'Choc' jusqu'a ce qu'il délivre l'énergie appropriée",
             "validation": {
                 "all_of": [
                     {
@@ -99,7 +100,8 @@
                     "action": "updateState",
                     "payload": {
                         "rhythmType": "sinus",
-                        "heartRate": 62
+                        "heartRate": 62,
+                        "bloodPressure": { "systolic": 112, "diastolic": 85, "map": 94.0 }
                     },
                     "delay": 500
                 }

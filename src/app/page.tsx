@@ -161,7 +161,7 @@ export default function LandingPage() {
 
           {/* Tagline toujours visible */}
           <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Formez-vous en sécurité, répondez avec confiance.
+            Formez-vous en sécurité
           </p>
 
           {/* Bouton En savoir plus - visible seulement sur mobile */}
@@ -187,10 +187,10 @@ export default function LandingPage() {
               Ce simulateur a été créé en collaboration avec
               <span className="text-white font-semibold">
                 {" "}
-                l'Hôpital Saint-Louis
+                les urgences de l'Hôpital Saint-Louis
               </span>
               . Notre mission est de fournir un outil de formation médicale basé sur le philips DFM100
-               à destination des soignants de soins intensifs.
+               à destination des soignants et des étudiants de médecine.
             </p>
           </div>
         </div>
@@ -261,8 +261,7 @@ export default function LandingPage() {
                 Tracé ECG Authentique
               </h3>
               <p className="text-gray-400 text-sm text-center">
-                Rythmes cardiaques authentiques incluant rythme sinusal, FV, TV,
-                asystolie avec modification en temps réel.
+                Rythme sinusal, fibrillation ventriculaire, fibrillation atriale.
               </p>
             </SpotlightCard>
 
@@ -283,11 +282,10 @@ export default function LandingPage() {
               spotlightColor="rgba(0, 229, 255, 0.2)"
             >
               <h3 className="text-xl font-semibold text-white mb-3 text-center">
-                Qualité Hospitalière
+                Scenarios pédagogiques
               </h3>
               <p className="text-gray-400 text-sm text-center">
-                Scénarios développés avec l'Hôpital Saint-Louis pour une
-                formation authentique.
+                Scénarios développés avec les urgentistes de l'Hôpital Saint-Louis.
               </p>
             </SpotlightCard>
           </div>
@@ -384,11 +382,11 @@ export default function LandingPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-white">
-                  ACR chocable
+                  ACR avec défibrillation en mode manuel
                 </h3>
               </div>
               <p className="text-gray-400 text-sm">
-                Défibrillation d'urgence avec défibrillateur manuel.
+                Utilisation du défibrillateur en mode manuel lors d'un ACR.
               </p>
             </SpotlightCard>
 
@@ -398,12 +396,11 @@ export default function LandingPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-white">
-                  DAE
+                  ACR avec défibrillation en mode DAE
                 </h3>
               </div>
               <p className="text-gray-400 text-sm">
-                Formation à l'utilisation du DAE pour intervenir en cas d'arrêt
-                cardiaque.
+                Utilisation du défibrillateur en mode DAE lors d'un ACR.
               </p>
             </SpotlightCard>
 
@@ -417,8 +414,7 @@ export default function LandingPage() {
                 </h3>
               </div>
               <p className="text-gray-400 text-sm">
-                Stimulation cardiaque d'urgence pour bradycardie avec ajustement
-                des paramètres.
+                Utilisation du défibrillateur en mode stimulateur lors d'une bradycardie mal tolérée.
               </p>
             </SpotlightCard>
 
@@ -432,8 +428,7 @@ export default function LandingPage() {
                 </h3>
               </div>
               <p className="text-gray-400 text-sm">
-                Cardioversion synchronisée pour traitement de la fibrillation
-                atriale.
+                Utilisation du défibrillateur en mode manuel lors d'une FA mal tolérée.
               </p>
             </SpotlightCard>
           </div>
@@ -444,8 +439,7 @@ export default function LandingPage() {
           Prêt à t'entrainer ?
         </h3>
         <p className="text-gray-500 max-w-2xl mx-auto text-center mb-10">
-          Rejoignez la formation utilisée par les professionnels de santé de
-          l'Hôpital Saint-Louis.
+          Utilisez la formation à la défibrillation de manière sécurisée
         </p>
         <div className="flex justify-center items-center mt-12 mb-10">
           <Link href="/simulator">
@@ -453,7 +447,7 @@ export default function LandingPage() {
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
               <span className="relative text-white mr-3">
-                Commencer la Formation
+                Accès au simulateur
               </span>
             </button>
           </Link>
@@ -591,10 +585,10 @@ export default function LandingPage() {
       <footer className="relative z-10 py-8 px-6 border-t border-gray-800 -mb-35">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-center">
           <div className="text-gray-500 text-sm text-center md:text-right">
-            © 2025 Plateforme de Formation d'Urgence Médicale
+            © 2025 Plateforme d'auto formation à la défibrillation
             <br className="md:hidden" />
             <span className="hidden md:inline"> • </span>
-            Développée pour l'Hôpital Saint-Louis
+            Développée pour les urgences de l'Hôpital Saint-Louis
           </div>
         </div>
       </footer>

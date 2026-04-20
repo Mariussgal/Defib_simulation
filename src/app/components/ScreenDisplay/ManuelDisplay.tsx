@@ -27,6 +27,10 @@ interface ManuelDisplayProps {
     seconds: number;
     totalSeconds: number;
   };
+  //ModifCodeSam
+   bloodPressure?: { systolic: number; diastolic: number; map?: number };
+  isScenario4?: boolean;
+   //ModifCodeSam
 }
 
 export interface ManuelDisplayRef {
@@ -37,6 +41,7 @@ export interface ManuelDisplayRef {
 const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(
   (
     {
+      
       energy,
       chargeProgress,
       shockCount,
@@ -50,7 +55,11 @@ const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(
       onShowVitalSignsChange,
       showShockDelivered,
       showCPRMessage,
-      timerProps
+      timerProps,
+      //ModifCodeSam
+      bloodPressure,
+      isScenario4,
+      //ModifCodeSam
     },
     ref,
   ) => {
@@ -111,6 +120,10 @@ const ManuelDisplay = forwardRef<ManuelDisplayRef, ManuelDisplayProps>(
             onShowFCValueChange={onShowFCValueChange || (() => { })}
             showVitalSigns={showVitalSigns}
             onShowVitalSignsChange={onShowVitalSignsChange || (() => { })}
+          //ModifCodeSam
+            bloodPressure={bloodPressure}
+            isScenario4={isScenario4}
+            //ModifCodeSam
           />
 
           <div className="h-6 flex items-center justify-center relative bg-black">
